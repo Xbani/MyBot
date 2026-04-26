@@ -77,6 +77,18 @@ public final class BotController {
         return intent;
     }
 
+    public List<PathNode> path() {
+        return List.copyOf(path);
+    }
+
+    public Vec3 pathTarget() {
+        return pathTarget;
+    }
+
+    public boolean pathStuck() {
+        return follower.stuck();
+    }
+
     private MovementInput pathInput(BotWorldState state, Vec3 position, Vec3 target) {
         Instant now = Instant.now();
         if (path.isEmpty() || follower.stuck() || target.horizontalDistanceTo(pathTarget) > 2.0 || Duration.between(lastPathAt, now).compareTo(REPATH_INTERVAL) > 0) {

@@ -13,6 +13,8 @@ import com.mybot.velocity.schematic.SchematicService;
 import org.slf4j.Logger;
 
 import java.time.Duration;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -145,6 +147,15 @@ public final class BotManager implements AutoCloseable {
 
     public Map<String, GraphDefinition> configuredGraphs() {
         return configService.graphs();
+    }
+
+    public int dumpRecordings(Path directory, String reason) throws IOException {
+        int snapshots = 0;
+        for (BotHandle handle : activeBots.values()) {
+            snapshots += handle.session().recorder().dump(directory, reason);
+        }
+        logger.info("Dumped {} bot recorder snapshots to {} ({})", snapshots, directory, reason);
+        return snapshots;
     }
 
     private void reloadFromConfig() {

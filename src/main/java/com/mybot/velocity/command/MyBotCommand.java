@@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.slf4j.Logger;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
@@ -17,15 +18,18 @@ public final class MyBotCommand implements SimpleCommand {
     private final BotManager botManager;
     private final ConfigService configService;
     private final DemoScenarioLoader demoScenarioLoader;
+    private final Path recordingsDirectory;
     private final Logger logger;
 
     public MyBotCommand(BotManager botManager,
                         ConfigService configService,
                         DemoScenarioLoader demoScenarioLoader,
+                        Path recordingsDirectory,
                         Logger logger) {
         this.botManager = Objects.requireNonNull(botManager, "botManager");
         this.configService = Objects.requireNonNull(configService, "configService");
         this.demoScenarioLoader = Objects.requireNonNull(demoScenarioLoader, "demoScenarioLoader");
+        this.recordingsDirectory = Objects.requireNonNull(recordingsDirectory, "recordingsDirectory");
         this.logger = Objects.requireNonNull(logger, "logger");
     }
 
@@ -43,6 +47,7 @@ public final class MyBotCommand implements SimpleCommand {
             case "list" -> list(invocation);
             case "reload" -> reload(invocation);
             case "demo" -> demo(invocation, args);
+            case "record" -> record(invocation, args);
             default -> help(invocation);
         }
     }
@@ -99,8 +104,22 @@ public final class MyBotCommand implements SimpleCommand {
         invocation.source().sendMessage(Component.text("Demo command processed", NamedTextColor.YELLOW));
     }
 
+    private void record(Invocation invocation, String[] args) {
+        if (args.length < 2 || !"dump".equalsIgnoreCase(args[1])) {
+            invocation.source().sendMessage(Component.text("Usage: /mybot record dump", NamedTextColor.RED));
+            return;
+        }
+        try {
+            int snapshots = botManager.dumpRecordings(recordingsDirectory, "command");
+            invocation.source().sendMessage(Component.text("Dumped " + snapshots + " bot snapshots to " + recordingsDirectory, NamedTextColor.GREEN));
+        } catch (Exception ex) {
+            invocation.source().sendMessage(Component.text("Recording dump failed: " + ex.getMessage(), NamedTextColor.RED));
+            logger.error("Recording dump command failed", ex);
+        }
+    }
+
     private void help(Invocation invocation) {
-        invocation.source().sendMessage(Component.text("/mybot <spawn|kill|list|reload|demo>", NamedTextColor.GRAY));
+        invocation.source().sendMessage(Component.text("/mybot <spawn|kill|list|reload|demo|record>", NamedTextColor.GRAY));
         invocation.source().sendMessage(Component.text("Args: " + Arrays.toString(invocation.arguments()), NamedTextColor.DARK_GRAY));
     }
 }
