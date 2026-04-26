@@ -60,7 +60,8 @@ public final class MyBotPlugin {
                     configService.resolve(globalConfig.dataFolders().schematicsDir()), logger);
             BotMetrics botMetrics = new BotMetrics();
             skinRegistry = new BotSkinRegistry();
-            botManager = new BotManager(configService, navigationService, schematicService, botMetrics, logger);
+            botManager = new BotManager(configService, navigationService, schematicService, botMetrics,
+                    dataDirectory.resolve("recordings"), logger);
             demoScenarioLoader = new DemoScenarioLoader(botManager, configService, logger, skinRegistry);
             CommandMeta meta = proxyServer.getCommandManager().metaBuilder("mybot")
                     .plugin(this)
