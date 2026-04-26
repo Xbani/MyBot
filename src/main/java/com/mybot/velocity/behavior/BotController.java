@@ -90,6 +90,12 @@ public final class BotController {
     }
 
     private MovementInput pathInput(BotWorldState state, Vec3 position, Vec3 target) {
+        if (target.y() > position.y() + 0.45 && position.horizontalDistanceTo(target) < 2.25) {
+            path = List.of();
+            follower.reset();
+            pathTarget = target;
+            return directInput(position, target);
+        }
         Instant now = Instant.now();
         if (path.isEmpty() || follower.stuck() || target.horizontalDistanceTo(pathTarget) > 2.0 || Duration.between(lastPathAt, now).compareTo(REPATH_INTERVAL) > 0) {
             double goalRadius = target.y() > position.y() + 0.45 ? 0.8 : Math.max(1.4, config.meleeRange() - 0.7);

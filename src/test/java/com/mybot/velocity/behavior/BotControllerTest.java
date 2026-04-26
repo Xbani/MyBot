@@ -68,6 +68,22 @@ class BotControllerTest {
         assertThat(physics.position().z()).isGreaterThan(2.0);
     }
 
+    @Test
+    void jumpsTowardCloseTargetStandingOneBlockAbove() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        blocks.setBlockForTesting(0, 68, 0, 1);
+        BotWorldState state = new BotWorldState(blocks);
+        state.putPlayer(new TrackedPlayer(9, UUID.randomUUID(), "RealTarget", new Vec3(0.2, 70.25, 0.2), 0, 0, Instant.now()));
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0.5, 69.01, 0.5), Vec3.ZERO, 0, 0);
+        BotController controller = new BotController(HgBehaviorConfig.defaults(), new BotActionQueue());
+
+        BotController.ControlPlan plan = controller.tick(state, physics);
+
+        assertThat(plan.movement().jump()).isTrue();
+        assertThat(plan.movement().moving()).isTrue();
+    }
+
     private WorldBlockCache flatGround() {
         WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
         for (int x = -4; x <= 4; x++) {
