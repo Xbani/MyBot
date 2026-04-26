@@ -104,6 +104,23 @@ class BotPhysicsTest {
         assertThat(physics.position().x()).isLessThan(0);
     }
 
+    @Test
+    void jumpClimbsOneBlockStep() {
+        WorldBlockCache blocks = flatGround();
+        blocks.setBlockForTesting(0, 64, 2, 1);
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0.5, 64, 0.5), Vec3.ZERO, 0, 0);
+        boolean climbed = false;
+
+        for (int i = 0; i < 35; i++) {
+            physics.tick(blocks, List.of(), new MovementInput(1, 0, true, false, false));
+            climbed |= physics.position().y() > 64.45 && physics.position().z() > 1.6;
+        }
+
+        assertThat(climbed).isTrue();
+        assertThat(physics.position().z()).isGreaterThan(2.0);
+    }
+
     private WorldBlockCache flatGround() {
         WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
         for (int x = -8; x <= 8; x++) {

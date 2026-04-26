@@ -61,6 +61,9 @@ public final class BotController {
         if (intent == BotIntent.FLEE) {
             return new ControlPlan(avoidBots(fleeInput(physics.position(), targetPosition), physics, state.trackedPlayers()), target);
         }
+        if (targetPosition.y() > physics.position().y() + 0.45) {
+            return new ControlPlan(avoidBots(pathInput(state, physics.position(), targetPosition), physics, state.trackedPlayers()), target);
+        }
         if (brain.combat().canMelee(physics.position(), target.get(), config)) {
             actions.enqueue(new BotAction.SwingMainHand());
             actions.enqueue(new BotAction.LeftClickEntity(target.get().entityId()));
@@ -90,10 +93,10 @@ public final class BotController {
 
     private MovementInput directInput(Vec3 position, Vec3 target) {
         double distance = position.horizontalDistanceTo(target);
-        if (distance <= 3.25) {
+        boolean jump = target.y() > position.y() + 0.45 && distance < 4.5;
+        if (distance <= 3.25 && !jump) {
             return MovementInput.NONE;
         }
-        boolean jump = target.y() > position.y() + 0.45 && distance < 4.5;
         return new MovementInput(1, 0, jump, distance > 7, false);
     }
 

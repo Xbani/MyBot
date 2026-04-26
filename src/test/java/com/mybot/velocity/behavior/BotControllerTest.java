@@ -3,6 +3,7 @@ package com.mybot.velocity.behavior;
 import com.mybot.velocity.action.BotActionQueue;
 import com.mybot.velocity.bot.BotPhysics;
 import com.mybot.velocity.bot.BotWorldState;
+import com.mybot.velocity.bot.MovementInput;
 import com.mybot.velocity.bot.TrackedPlayer;
 import com.mybot.velocity.bot.Vec3;
 import com.mybot.velocity.bot.WorldBlockCache;
@@ -44,5 +45,36 @@ class BotControllerTest {
 
         assertThat(plan.movement().jump()).isTrue();
         assertThat(plan.movement().forward()).isGreaterThan(0);
+    }
+
+    @Test
+    void keepsMovingWhenOneBlockHigherTargetIsInsideMeleeStopRange() {
+        WorldBlockCache blocks = flatGround();
+        blocks.setBlockForTesting(0, 64, 2, 1);
+        BotWorldState state = new BotWorldState(blocks);
+        state.putPlayer(new TrackedPlayer(8, UUID.randomUUID(), "RealTarget", new Vec3(0.5, 65, 3), 0, 0, Instant.now()));
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0.5, 64, 0.5), Vec3.ZERO, 0, 0);
+        BotController controller = new BotController(HgBehaviorConfig.defaults(), new BotActionQueue());
+        boolean climbed = false;
+
+        for (int i = 0; i < 35; i++) {
+            MovementInput movement = controller.tick(state, physics).movement();
+            physics.tick(blocks, state.trackedPlayers(), movement);
+            climbed |= physics.position().y() > 64.45 && physics.position().z() > 1.6;
+        }
+
+        assertThat(climbed).isTrue();
+        assertThat(physics.position().z()).isGreaterThan(2.0);
+    }
+
+    private WorldBlockCache flatGround() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        for (int x = -4; x <= 4; x++) {
+            for (int z = -4; z <= 6; z++) {
+                blocks.setBlockForTesting(x, 63, z, 1);
+            }
+        }
+        return blocks;
     }
 }
