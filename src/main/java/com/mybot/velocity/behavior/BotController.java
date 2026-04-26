@@ -80,7 +80,8 @@ public final class BotController {
     private MovementInput pathInput(BotWorldState state, Vec3 position, Vec3 target) {
         Instant now = Instant.now();
         if (path.isEmpty() || follower.stuck() || target.horizontalDistanceTo(pathTarget) > 2.0 || Duration.between(lastPathAt, now).compareTo(REPATH_INTERVAL) > 0) {
-            path = pathfinder.findPath(state.blocks(), position, target).orElse(List.of());
+            double goalRadius = target.y() > position.y() + 0.45 ? 0.8 : Math.max(1.4, config.meleeRange() - 0.7);
+            path = pathfinder.findPath(state.blocks(), position, target, goalRadius).orElse(List.of());
             pathTarget = target;
             lastPathAt = now;
             follower.reset();
@@ -88,7 +89,8 @@ public final class BotController {
         if (path.isEmpty()) {
             return directInput(position, target);
         }
-        return follower.follow(position, path, position.horizontalDistanceTo(target) > 6);
+        return follower.follow(position, BotPhysics.lookAt(position.add(0, 1.62, 0), target.add(0, 1.62, 0)).yaw(),
+                path, position.horizontalDistanceTo(target) > 6);
     }
 
     private MovementInput directInput(Vec3 position, Vec3 target) {

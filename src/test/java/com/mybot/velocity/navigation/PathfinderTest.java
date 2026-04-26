@@ -68,4 +68,40 @@ class PathfinderTest {
         assertThat(path).isPresent();
         assertThat(path.get()).anyMatch(node -> node.x() == 1);
     }
+
+    @Test
+    void plansToAttackRangeInsteadOfExactPlayerBlock() {
+        WorldBlockCache blocks = flatGround(-2, 8, -2, 2);
+
+        var path = new Pathfinder().findPath(blocks, new Vec3(0.5, 64, 0.5), new Vec3(6.5, 64, 0.5), 2.25);
+
+        assertThat(path).isPresent();
+        PathNode end = path.get().getLast();
+        assertThat(end.center().horizontalDistanceTo(new Vec3(6.5, 64, 0.5))).isLessThanOrEqualTo(2.25);
+        assertThat(end.x()).isLessThan(6);
+    }
+
+    @Test
+    void doesNotCutDiagonalCornersThroughWalls() {
+        WorldBlockCache blocks = flatGround(-1, 3, -1, 3);
+        blocks.setBlockForTesting(1, 64, 0, 1);
+        blocks.setBlockForTesting(1, 65, 0, 1);
+        blocks.setBlockForTesting(0, 64, 1, 1);
+        blocks.setBlockForTesting(0, 65, 1, 1);
+
+        var path = new Pathfinder().findPath(blocks, new Vec3(0.5, 64, 0.5), new Vec3(2.5, 64, 2.5), 0.25);
+
+        assertThat(path).isPresent();
+        assertThat(path.get()).noneMatch(node -> node.x() == 1 && node.z() == 1);
+    }
+
+    private WorldBlockCache flatGround(int minX, int maxX, int minZ, int maxZ) {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                blocks.setBlockForTesting(x, 63, z, 1);
+            }
+        }
+        return blocks;
+    }
 }
