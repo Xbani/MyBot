@@ -1,0 +1,14 @@
+detection-radius: 24.0
+melee-range: 3.0
+flee-health: 6.0
+heal-health: 10.0
+walk-speed: 0.10
+sprint-speed: 0.16
+sneak-speed: 0.04
+reaction-millis: 180
+aim-accuracy: 0.86
+loot-priority:
+  weapon: 100
+  armor: 80
+  food: 50
+  blocks: 25

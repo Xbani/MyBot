@@ -1,0 +1,12 @@
+﻿{
+  "id": "mybot",
+  "name": "MyBot",
+  "version": "${project.version}",
+  "description": "Velocity-managed Minecraft bot platform with behavior graphs and demos.",
+  "authors": ["MyBot Team"],
+  "dependencies": [],
+  "main": "com.mybot.velocity.MyBotPlugin",
+  "provides": ["bot-simulation"],
+  "load": "POSTWORLD",
+  "permission": "mybot.*"
+}

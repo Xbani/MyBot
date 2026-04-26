@@ -1,0 +1,21 @@
+﻿max-bots: 25
+velocity-endpoint:
+  host: 127.0.0.1
+  port: 25577
+auth:
+  mode: offline
+  mojang-email: ""
+  mojang-password: ""
+default-graph: hg_bot
+demo-enabled: true
+logging:
+  level: INFO
+  command-audits: true
+schedulers:
+  bot-tick-millis: 50
+  graph-tick-millis: 200
+
+data-folders:
+  bots: bots
+  graphs: graphs
+  schematics: schematics

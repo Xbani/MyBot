@@ -1,0 +1,22 @@
+count: 2
+initial-server: hg2
+assigned-graph: hg_bot
+behavior:
+  aggression: 0.65
+  reaction-millis: 180
+  aim-accuracy: 0.86
+  loot-priority: balanced
+names:
+  - Astra
+  - Nova
+  - Kiro
+  - Milo
+  - Rune
+  - Sora
+  - Vex
+  - Nox
+  - Lynx
+  - Echo
+skin:
+  value: "ewogICJ0aW1lc3RhbXAiIDogMTc3NzE5OTczMTk5NCwKICAicHJvZmlsZUlkIiA6ICJiNGZhMzIzZTkyZjc0OGRkYjJiZDA2YmExZjhkZjEzNCIsCiAgInByb2ZpbGVOYW1lIiA6ICJTcG9rc2l1a3MiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzdkMzFlOGJjNmM5YWYwM2I5OTk3MGM1NDlhODg4MzdkZWUxMWIwZDQzNzkzYWE2NjI2YzcwZDI3Mzc0YjRhMSIKICAgIH0KICB9Cn0="
+  signature: "ui0CyzRY1DJe9/1elVZrmgMZ3abMKlvRatseUO7LHGj4AuTfy17+ol9VJk9QE2dO0TEz9HkpEu9g1LeF3OeleZfbq1HMNGoeLkGYbPj1nTw/FjpI0skWbmhyVQNxyFFAobYwUWBtCdc9R8dkms73RAnVBluKrXw17+zbfDWQcGUEjrqBGn+yEKChqMXc6RQETaxu9OkyGletN6cjshSpl7UcRYQ7Li0kLk0UNoagGvSX594bH2CCc3dAhpY+gAp5hKzFMVK3IKSfiBWMqiVTrKukdYwcrZbXzmtIk/b5bu9bD0n7IAMvXsAhnLcizMXMVsaDW/2wUHFLD30T07J3eo0XstXgEhfmlBrLxlKPiKVQZNMOpvDBwBUw1WIw70nGLGkj1T4Z1MOKK6JPuAofL1Wec7oX71xs3wfgcFaiN94BvX/WP+pJ5BQSdXfO1advBsxDWGNNnKQESLco26eUmhZvmEgcY17ZVM40XcQzih2U2e955aUyRYbE+ELidvxYPECedLrfWGYFRPzNBBELRplhfKu+gDKIFqd0ADMxMPmhjOzgW7s3ZjIlu0NeYvl0u/kKaSN4kwNFoDuPL6vBeZt9lC3VOoGwuikFB8LDnVEzizZgWBcOp1SFloomj3GjKARQoBUhRnnPMTs7daGDiQr4I5AdRT1pPZMnMG119X8="

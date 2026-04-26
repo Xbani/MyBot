@@ -1,0 +1,9 @@
+id: hg_bot
+entry: idle
+nodes:
+  idle:
+    type: Wait
+    params:
+      ticks: 1000000
+    next:
+      default: idle
