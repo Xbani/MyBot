@@ -56,7 +56,7 @@ public final class BotController {
             return new ControlPlan(avoidBots(MovementInput.NONE, physics, state.trackedPlayers()), Optional.empty());
         }
         Vec3 targetPosition = target.get().position();
-        BotPhysics.LookAngles look = BotPhysics.lookAt(physics.position().add(0, 1.62, 0), targetPosition.add(0, 1.62, 0));
+        BotPhysics.LookAngles look = BotPhysics.lookAt(BotPhysics.eyePosition(physics.position()), BotPhysics.bodyAimPosition(targetPosition));
         physics.setLook(smooth(physics.yaw(), look.yaw(), config.aimAccuracy()), smooth(physics.pitch(), look.pitch(), config.aimAccuracy()));
         if (intent == BotIntent.FLEE) {
             return new ControlPlan(avoidBots(fleeInput(physics.position(), targetPosition), physics, state.trackedPlayers()), target);
@@ -107,7 +107,7 @@ public final class BotController {
         if (path.isEmpty()) {
             return directInput(position, target);
         }
-        return follower.follow(position, BotPhysics.lookAt(position.add(0, 1.62, 0), target.add(0, 1.62, 0)).yaw(),
+        return follower.follow(position, BotPhysics.lookAt(BotPhysics.eyePosition(position), BotPhysics.bodyAimPosition(target)).yaw(),
                 path, position.horizontalDistanceTo(target) > 6);
     }
 

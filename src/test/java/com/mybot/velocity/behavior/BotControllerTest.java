@@ -84,6 +84,23 @@ class BotControllerTest {
         assertThat(plan.movement().moving()).isTrue();
     }
 
+    @Test
+    void aimsAtTargetBodyInsteadOfEyeLine() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        BotWorldState state = new BotWorldState(blocks);
+        state.putPlayer(new TrackedPlayer(10, UUID.randomUUID(), "RealTarget", new Vec3(4, 64, 0), 0, 0, Instant.now()));
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0, 64, 0), Vec3.ZERO, 0, 0);
+        HgBehaviorConfig accurateAim = new HgBehaviorConfig(24.0, 3.0, 6.0f, 10.0f, 0.10, 0.16, 0.04, 180L, 1.0);
+        BotController controller = new BotController(accurateAim, new BotActionQueue());
+
+        controller.tick(state, physics);
+
+        assertThat(physics.yaw()).isCloseTo(-90f, org.assertj.core.data.Offset.offset(0.01f));
+        assertThat(physics.pitch()).isGreaterThan(7f);
+        assertThat(physics.pitch()).isLessThan(8f);
+    }
+
     private WorldBlockCache flatGround() {
         WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
         for (int x = -4; x <= 4; x++) {

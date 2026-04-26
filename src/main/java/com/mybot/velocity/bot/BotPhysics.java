@@ -5,6 +5,9 @@ import java.util.Comparator;
 import java.util.Optional;
 
 public final class BotPhysics {
+    public static final double PLAYER_STANDING_EYE_HEIGHT = 1.62;
+    public static final double PLAYER_BODY_AIM_HEIGHT = 1.10;
+
     private static final double WIDTH = 0.6;
     private static final double HALF_WIDTH = WIDTH / 2.0;
     private static final double HEIGHT = 1.8;
@@ -35,7 +38,7 @@ public final class BotPhysics {
         Optional<TrackedPlayer> target = nearestRealPlayer(players);
         if (target.isPresent()) {
             Vec3 targetPosition = target.get().position();
-            LookAngles look = lookAt(position.add(0, 1.62, 0), targetPosition.add(0, 1.62, 0));
+            LookAngles look = lookAt(eyePosition(position), bodyAimPosition(targetPosition));
             yaw = look.yaw();
             pitch = look.pitch();
             return tick(blocks, players, targetInput(targetPosition, blocks.hasChunkAt(position.x(), position.z())));
@@ -124,6 +127,14 @@ public final class BotPhysics {
         float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
         float pitch = (float) Math.toDegrees(Math.atan2(-dy, horizontal));
         return new LookAngles(yaw, pitch);
+    }
+
+    public static Vec3 eyePosition(Vec3 feetPosition) {
+        return feetPosition.add(0, PLAYER_STANDING_EYE_HEIGHT, 0);
+    }
+
+    public static Vec3 bodyAimPosition(Vec3 feetPosition) {
+        return feetPosition.add(0, PLAYER_BODY_AIM_HEIGHT, 0);
     }
 
     private Optional<TrackedPlayer> nearestRealPlayer(Collection<TrackedPlayer> players) {
