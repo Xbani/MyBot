@@ -93,7 +93,8 @@ public final class BotController {
         if (distance <= 3.25) {
             return MovementInput.NONE;
         }
-        return new MovementInput(1, 0, false, distance > 7, false);
+        boolean jump = target.y() > position.y() + 0.45 && distance < 4.5;
+        return new MovementInput(1, 0, jump, distance > 7, false);
     }
 
     private MovementInput fleeInput(Vec3 position, Vec3 threat) {

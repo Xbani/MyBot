@@ -8,6 +8,9 @@ import org.slf4j.helpers.NOPLogger;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PathfinderTest {
+    private static final int TALL_GRASS_BOTTOM = 12721;
+    private static final int LARGE_FERN_BOTTOM = 12723;
+
     @Test
     void findsPathAroundWallGap() {
         WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
@@ -34,5 +37,35 @@ class PathfinderTest {
         WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
 
         assertThat(new Pathfinder().walkable(blocks, new PathNode(0, 64, 0))).isFalse();
+    }
+
+    @Test
+    void treatsTallGrassAndLargeFernAsWalkableSpace() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        blocks.setBlockForTesting(0, 63, 0, 1);
+        blocks.setBlockForTesting(0, 64, 0, TALL_GRASS_BOTTOM);
+        blocks.setBlockForTesting(0, 65, 0, LARGE_FERN_BOTTOM);
+
+        assertThat(blocks.isSolid(0, 64, 0)).isFalse();
+        assertThat(blocks.isSolid(0, 65, 0)).isFalse();
+        assertThat(new Pathfinder().walkable(blocks, new PathNode(0, 64, 0))).isTrue();
+    }
+
+    @Test
+    void findsPathThroughTallGrassInsteadOfTreatingItAsAWall() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        for (int x = -2; x <= 4; x++) {
+            for (int z = -2; z <= 2; z++) {
+                blocks.setBlockForTesting(x, 63, z, 1);
+            }
+        }
+        for (int z = -2; z <= 2; z++) {
+            blocks.setBlockForTesting(1, 64, z, TALL_GRASS_BOTTOM);
+        }
+
+        var path = new Pathfinder().findPath(blocks, new Vec3(0, 64, 0), new Vec3(3, 64, 0));
+
+        assertThat(path).isPresent();
+        assertThat(path.get()).anyMatch(node -> node.x() == 1);
     }
 }

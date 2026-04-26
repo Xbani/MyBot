@@ -26,9 +26,11 @@ public final class PathFollower {
         double forwardZ = Math.cos(yawRad);
         double forward = delta.x() * forwardX + delta.z() * forwardZ;
         double strafe = delta.x() * forwardZ - delta.z() * forwardX;
-        boolean jump = target.y() > position.y() + 0.45;
+        boolean jump = shouldJump(position, path);
         updateStuck(position);
-        return stuckTicks > 20 ? new MovementInput(0, strafe, jump, false, false) : new MovementInput(forward, strafe, jump, sprint, false).clamp();
+        return stuckTicks > 20 && !jump
+                ? new MovementInput(0, strafe, false, false, false)
+                : new MovementInput(forward, strafe, jump, sprint, false).clamp();
     }
 
     public boolean stuck() {
@@ -47,5 +49,16 @@ public final class PathFollower {
             stuckTicks = 0;
             lastPosition = position;
         }
+    }
+
+    private boolean shouldJump(Vec3 position, List<PathNode> path) {
+        int end = Math.min(index + 1, path.size() - 1);
+        for (int i = index; i <= end; i++) {
+            Vec3 node = path.get(i).center();
+            if (node.y() > position.y() + 0.45 && position.horizontalDistanceTo(node) < 1.6) {
+                return true;
+            }
+        }
+        return false;
     }
 }

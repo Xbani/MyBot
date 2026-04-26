@@ -30,4 +30,19 @@ class BotControllerTest {
         assertThat(plan.movement().strafe()).isLessThan(0);
         assertThat(plan.movement().sprint()).isFalse();
     }
+
+    @Test
+    void jumpsWhenDirectTargetIsOneBlockHigher() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        BotWorldState state = new BotWorldState(blocks);
+        state.putPlayer(new TrackedPlayer(7, UUID.randomUUID(), "RealTarget", new Vec3(4, 65, 0), 0, 0, Instant.now()));
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0, 64, 0), Vec3.ZERO, 0, 0);
+        BotController controller = new BotController(HgBehaviorConfig.defaults(), new BotActionQueue());
+
+        BotController.ControlPlan plan = controller.tick(state, physics);
+
+        assertThat(plan.movement().jump()).isTrue();
+        assertThat(plan.movement().forward()).isGreaterThan(0);
+    }
 }
