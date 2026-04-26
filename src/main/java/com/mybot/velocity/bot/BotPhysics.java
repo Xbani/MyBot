@@ -58,12 +58,12 @@ public final class BotPhysics {
         if (clamped.jump() && onGround) {
             vertical = JUMP_VELOCITY;
         }
-        vertical = Math.max(TERMINAL_VELOCITY, vertical - GRAVITY);
+        double nextVertical = Math.max(TERMINAL_VELOCITY, vertical - GRAVITY);
         double friction = onGround ? GROUND_FRICTION : AIR_FRICTION;
-        velocity = new Vec3(horizontal.x() + velocity.x() * friction, vertical, horizontal.z() + velocity.z() * friction);
-        CollisionResult resolved = moveWithCollisions(blocks, position, velocity);
+        Vec3 movement = new Vec3(horizontal.x() + velocity.x() * friction, vertical, horizontal.z() + velocity.z() * friction);
+        CollisionResult resolved = moveWithCollisions(blocks, position, movement);
         position = resolved.position();
-        velocity = new Vec3(resolved.blockedX() ? 0 : velocity.x(), resolved.blockedY() ? 0 : velocity.y(), resolved.blockedZ() ? 0 : velocity.z());
+        velocity = new Vec3(resolved.blockedX() ? 0 : movement.x(), resolved.blockedY() ? 0 : nextVertical, resolved.blockedZ() ? 0 : movement.z());
         onGround = resolved.grounded();
         horizontalCollision = resolved.blockedX() || resolved.blockedZ();
         return new PhysicsTick(position, yaw, pitch, onGround, horizontalCollision, blocks.hasChunkAt(position.x(), position.z()), target, clamped);
@@ -155,6 +155,12 @@ public final class BotPhysics {
     }
 
     private static CollisionResult moveWithCollisions(WorldBlockCache blocks, Vec3 start, Vec3 delta) {
+        if (delta.y() > 0) {
+            MoveAxis y = moveAxis(blocks, start, delta.y(), Axis.Y);
+            MoveAxis x = moveAxis(blocks, y.position(), delta.x(), Axis.X);
+            MoveAxis z = moveAxis(blocks, x.position(), delta.z(), Axis.Z);
+            return new CollisionResult(z.position(), x.blocked(), y.blocked(), z.blocked(), false);
+        }
         MoveAxis x = moveAxis(blocks, start, delta.x(), Axis.X);
         MoveAxis y = moveAxis(blocks, x.position(), delta.y(), Axis.Y);
         MoveAxis z = moveAxis(blocks, y.position(), delta.z(), Axis.Z);

@@ -83,6 +83,7 @@ public class BotSession {
     private final BotWorldState worldState;
     private final BotActionQueue actions = new BotActionQueue();
     private final BotController controller;
+    private final BotRecorder recorder;
     private volatile Instant lastActivity = Instant.now();
     private volatile String currentServer;
     private volatile int entityId = -1;
@@ -100,6 +101,7 @@ public class BotSession {
         this.blocks = new WorldBlockCache(logger);
         this.worldState = new BotWorldState(blocks);
         this.controller = new BotController(HgBehaviorConfig.fromTraits(definition.traits()), actions);
+        this.recorder = new BotRecorder(definition.id(), definition.username());
     }
 
     public CompletableFuture<Void> connect() {
@@ -221,6 +223,21 @@ public class BotSession {
         }
         BotController.ControlPlan plan = controller.tick(worldState, physics);
         BotPhysics.PhysicsTick tick = physics.tick(blocks, worldState.trackedPlayers(), plan.movement());
+        recorder.record(BotRecorder.Snapshot.from(
+                controller.intent(),
+                tick.position(),
+                physics.velocity(),
+                tick.yaw(),
+                tick.pitch(),
+                tick,
+                worldState.health(),
+                worldState.food(),
+                plan.target(),
+                worldState.trackedPlayers(),
+                controller.path(),
+                controller.pathTarget(),
+                controller.pathStuck()
+        ));
         if (!tick.chunksLoaded()) {
             return;
         }
@@ -241,6 +258,10 @@ public class BotSession {
 
     public BotWorldState worldState() {
         return worldState;
+    }
+
+    public BotRecorder recorder() {
+        return recorder;
     }
 
     public int entityId() {

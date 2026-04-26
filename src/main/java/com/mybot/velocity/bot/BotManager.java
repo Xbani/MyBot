@@ -13,6 +13,8 @@ import com.mybot.velocity.schematic.SchematicService;
 import org.slf4j.Logger;
 
 import java.time.Duration;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -22,6 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Coordinates bot lifecycle and ties configuration to runtime state.
@@ -32,6 +35,7 @@ public final class BotManager implements AutoCloseable {
     private final NavigationService navigationService;
     private final SchematicService schematicService;
     private final BotMetrics metrics;
+    private final Path recordingsDirectory;
     private final Logger logger;
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2,
             r -> {
@@ -46,11 +50,13 @@ public final class BotManager implements AutoCloseable {
                       NavigationService navigationService,
                       SchematicService schematicService,
                       BotMetrics metrics,
+                      Path recordingsDirectory,
                       Logger logger) {
         this.configService = Objects.requireNonNull(configService, "configService");
         this.navigationService = Objects.requireNonNull(navigationService, "navigationService");
         this.schematicService = Objects.requireNonNull(schematicService, "schematicService");
         this.metrics = Objects.requireNonNull(metrics, "metrics");
+        this.recordingsDirectory = Objects.requireNonNull(recordingsDirectory, "recordingsDirectory");
         this.logger = Objects.requireNonNull(logger, "logger");
         this.executors = new GraphNodeExecutors(logger);
         this.configService.addReloadListener(this::reloadFromConfig);
@@ -120,6 +126,7 @@ public final class BotManager implements AutoCloseable {
                 return false;
             }
             handle.session().disconnectedFuture().thenAccept(reason -> {
+                handle.dumpRecording("disconnect-" + reason);
                 activeBots.remove(botId, handle);
                 logger.info("Removed disconnected bot {} from active registry: {}", botId, reason);
             });
@@ -147,6 +154,15 @@ public final class BotManager implements AutoCloseable {
         return configService.graphs();
     }
 
+    public int dumpRecordings(Path directory, String reason) throws IOException {
+        int snapshots = 0;
+        for (BotHandle handle : activeBots.values()) {
+            snapshots += handle.session().recorder().dump(directory, reason);
+        }
+        logger.info("Dumped {} bot recorder snapshots to {} ({})", snapshots, directory, reason);
+        return snapshots;
+    }
+
     private void reloadFromConfig() {
         metrics.markReload();
         logger.info("Reload triggered: restarting {} bots", activeBots.size());
@@ -160,6 +176,7 @@ public final class BotManager implements AutoCloseable {
         private final BotSession session;
         private final BotPacketBridge packetBridge;
         private final GraphRuntime runtime;
+        private final AtomicBoolean recordingDumped = new AtomicBoolean(false);
 
         private BotHandle(BotDefinition definition, GraphDefinition graphDefinition) {
             this.definition = definition;
@@ -186,7 +203,20 @@ public final class BotManager implements AutoCloseable {
         }
 
         private void shutdown(String reason) {
+            dumpRecording(reason);
             session.disconnect(reason);
+        }
+
+        private void dumpRecording(String reason) {
+            if (!recordingDumped.compareAndSet(false, true)) {
+                return;
+            }
+            try {
+                int snapshots = session.recorder().dump(recordingsDirectory, reason);
+                logger.info("Dumped {} recorder snapshots for bot {} ({})", snapshots, definition.id(), reason);
+            } catch (IOException ex) {
+                logger.warn("Failed to dump recorder snapshots for bot {}", definition.id(), ex);
+            }
         }
 
         @Override

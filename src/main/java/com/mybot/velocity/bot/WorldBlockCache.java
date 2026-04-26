@@ -20,6 +20,61 @@ public final class WorldBlockCache {
     private static final int SECTION_COUNT = 24;
     private static final int BLOCK_GLOBAL_PALETTE_BITS = 15;
     private static final int BIOME_GLOBAL_PALETTE_BITS = 6;
+    private static final int[][] EMPTY_COLLISION_STATE_RANGES = {
+            {0, 0},
+            {29, 84},
+            {86, 117},
+            {1987, 2034},
+            {2047, 2056},
+            {2109, 2136},
+            {3169, 3686},
+            {3810, 5105},
+            {5110, 5117},
+            {5134, 5453},
+            {5526, 5545},
+            {5626, 6473},
+            {6570, 6595},
+            {6660, 6679},
+            {6684, 6725},
+            {6744, 6744},
+            {6746, 6761},
+            {6805, 6814},
+            {6816, 6817},
+            {8133, 8444},
+            {9246, 9249},
+            {9267, 9267},
+            {9382, 9525},
+            {10457, 10712},
+            {11029, 11060},
+            {11206, 11229},
+            {12333, 12364},
+            {12713, 13044},
+            {14595, 14596},
+            {14607, 14612},
+            {14614, 14614},
+            {14649, 14649},
+            {14860, 14886},
+            {14945, 15064},
+            {15076, 15076},
+            {15090, 15093},
+            {20739, 20742},
+            {20756, 20756},
+            {20758, 20759},
+            {20773, 20773},
+            {20775, 20829},
+            {20844, 20847},
+            {21264, 21311},
+            {21440, 21519},
+            {22541, 22566},
+            {24487, 24487},
+            {24969, 25096},
+            {27554, 27608},
+            {27612, 27659},
+            {27693, 27718},
+            {29389, 29389},
+            {29664, 29667},
+            {29670, 29670}
+    };
 
     private final ConcurrentMap<Long, ChunkColumn> chunks = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, Integer> explicitBlocks = new ConcurrentHashMap<>();
@@ -89,7 +144,7 @@ public final class WorldBlockCache {
         ChunkSection section = section(x, y, z);
         Integer explicit = explicitBlocks.get(blockKey(x, y, z));
         if (explicit != null) {
-            return explicit != 0;
+            return isCollisionBlocking(explicit);
         }
         if (overrideChunks.contains(chunkKey(Math.floorDiv(x, 16), Math.floorDiv(z, 16)))) {
             return false;
@@ -97,7 +152,7 @@ public final class WorldBlockCache {
         if (section == null) {
             return false;
         }
-        return section.getBlock(Math.floorMod(x, 16), Math.floorMod(y, 16), Math.floorMod(z, 16)) != 0;
+        return isCollisionBlocking(section.getBlock(Math.floorMod(x, 16), Math.floorMod(y, 16), Math.floorMod(z, 16)));
     }
 
     public void setBlockForTesting(int x, int y, int z, int blockState) {
@@ -116,6 +171,18 @@ public final class WorldBlockCache {
         return new ChunkSection(0,
                 DataPalette.createForBlockState(BLOCK_GLOBAL_PALETTE_BITS, 0),
                 DataPalette.createForBiome(BIOME_GLOBAL_PALETTE_BITS, 0));
+    }
+
+    private static boolean isCollisionBlocking(int blockState) {
+        for (int[] range : EMPTY_COLLISION_STATE_RANGES) {
+            if (blockState < range[0]) {
+                return true;
+            }
+            if (blockState <= range[1]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void setBlock(BlockChangeEntry entry) {

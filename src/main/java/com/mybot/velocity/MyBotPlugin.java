@@ -60,14 +60,15 @@ public final class MyBotPlugin {
                     configService.resolve(globalConfig.dataFolders().schematicsDir()), logger);
             BotMetrics botMetrics = new BotMetrics();
             skinRegistry = new BotSkinRegistry();
-            botManager = new BotManager(configService, navigationService, schematicService, botMetrics, logger);
+            botManager = new BotManager(configService, navigationService, schematicService, botMetrics,
+                    dataDirectory.resolve("recordings"), logger);
             demoScenarioLoader = new DemoScenarioLoader(botManager, configService, logger, skinRegistry);
             CommandMeta meta = proxyServer.getCommandManager().metaBuilder("mybot")
                     .plugin(this)
                     .aliases("mbot")
                     .build();
             proxyServer.getCommandManager().register(meta,
-                    new MyBotCommand(botManager, configService, demoScenarioLoader, logger));
+                    new MyBotCommand(botManager, configService, demoScenarioLoader, dataDirectory.resolve("recordings"), logger));
             metricsEndpoint = new MetricsEndpoint(botMetrics,
                     new java.net.InetSocketAddress(globalConfig.velocityEndpoint().getHostString(), 0),
                     logger);
@@ -99,6 +100,11 @@ public final class MyBotPlugin {
     @Subscribe
     public void onShutdown(ProxyShutdownEvent event) {
         if (botManager != null) {
+            try {
+                botManager.dumpRecordings(dataDirectory.resolve("recordings"), "proxy-shutdown");
+            } catch (IOException e) {
+                logger.warn("Failed to dump bot recordings on shutdown", e);
+            }
             botManager.close();
             botManager = null;
         }
