@@ -95,6 +95,42 @@ class PathfinderTest {
         assertThat(path.get()).noneMatch(node -> node.x() == 1 && node.z() == 1);
     }
 
+    @Test
+    void prefersWaterSurfaceNodesWhenCrossingWater() {
+        WorldBlockCache blocks = flatGround(-2, 8, -2, 2);
+        for (int x = 2; x <= 4; x++) {
+            for (int z = -1; z <= 1; z++) {
+                blocks.setBlockForTesting(x, 63, z, 50);
+                blocks.setBlockForTesting(x, 64, z, 50);
+            }
+        }
+
+        var path = new Pathfinder().findPath(blocks, new Vec3(0.5, 64, 0.5), new Vec3(6.5, 64, 0.5), 0.5);
+
+        assertThat(path).isPresent();
+        assertThat(path.get()).anyMatch(node -> node.y() == 64 && blocks.isWaterSurface(node.x(), node.y(), node.z()));
+        assertThat(path.get()).noneMatch(node -> node.y() < 64 && blocks.isLiquidBlock(node.x(), node.y(), node.z()));
+    }
+
+    @Test
+    void swimsUpToSurfaceBeforePathingAcrossWater() {
+        WorldBlockCache blocks = flatGround(-1, 5, -1, 1);
+        for (int y = 61; y <= 64; y++) {
+            blocks.setBlockForTesting(0, y, 0, 29);
+            blocks.setBlockForTesting(1, y, 0, 29);
+        }
+
+        var path = new Pathfinder().findPath(blocks, new Vec3(0.5, 61.2, 0.5), new Vec3(4.5, 64, 0.5), 0.5);
+
+        assertThat(path).isPresent();
+        assertThat(path.get().get(1)).satisfies(node -> {
+            assertThat(node.x()).isEqualTo(0);
+            assertThat(node.z()).isEqualTo(0);
+            assertThat(node.y()).isEqualTo(62);
+        });
+        assertThat(path.get()).anyMatch(node -> node.y() == 64 && blocks.isWaterSurface(node.x(), node.y(), node.z()));
+    }
+
     private WorldBlockCache flatGround(int minX, int maxX, int minZ, int maxZ) {
         WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
         for (int x = minX; x <= maxX; x++) {

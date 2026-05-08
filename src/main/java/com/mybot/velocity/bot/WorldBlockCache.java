@@ -12,6 +12,7 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.Clien
 import org.slf4j.Logger;
 
 import java.util.Map;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -78,6 +79,8 @@ public final class WorldBlockCache {
 
     private final ConcurrentMap<Long, ChunkColumn> chunks = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, Integer> explicitBlocks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, Long> chunkUpdates = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, ChunkSnapshot> surfaceSnapshots = new ConcurrentHashMap<>();
     private final java.util.Set<Long> overrideChunks = ConcurrentHashMap.newKeySet();
     private final Logger logger;
 
@@ -93,16 +96,25 @@ public final class WorldBlockCache {
                 column.sections.put(MIN_SECTION_Y + i,
                         MinecraftTypes.readChunkSection(buffer, BLOCK_GLOBAL_PALETTE_BITS, BIOME_GLOBAL_PALETTE_BITS));
             }
-            chunks.put(chunkKey(packet.getX(), packet.getZ()), column);
+            long key = chunkKey(packet.getX(), packet.getZ());
+            chunks.put(key, column);
+            chunkUpdates.put(key, System.currentTimeMillis());
+            surfaceSnapshots.remove(key);
         } catch (RuntimeException ex) {
-            chunks.remove(chunkKey(packet.getX(), packet.getZ()));
+            long key = chunkKey(packet.getX(), packet.getZ());
+            chunks.remove(key);
+            chunkUpdates.remove(key);
+            surfaceSnapshots.remove(key);
             logger.debug("Unable to decode chunk {},{} for collision cache", packet.getX(), packet.getZ(), ex);
         }
     }
 
     public void handleForget(ClientboundForgetLevelChunkPacket packet) {
-        chunks.remove(chunkKey(packet.getX(), packet.getZ()));
-        explicitBlocks.keySet().removeIf(key -> chunkKey(blockX(key) >> 4, blockZ(key) >> 4) == chunkKey(packet.getX(), packet.getZ()));
+        long removedChunkKey = chunkKey(packet.getX(), packet.getZ());
+        chunks.remove(removedChunkKey);
+        chunkUpdates.remove(removedChunkKey);
+        surfaceSnapshots.remove(removedChunkKey);
+        explicitBlocks.keySet().removeIf(key -> chunkKey(blockX(key) >> 4, blockZ(key) >> 4) == removedChunkKey);
     }
 
     public void handleBlockUpdate(ClientboundBlockUpdatePacket packet) {
@@ -140,19 +152,66 @@ public final class WorldBlockCache {
         return false;
     }
 
+    public boolean hasLineOfSight(Vec3 from, Vec3 to) {
+        double dx = to.x() - from.x();
+        double dy = to.y() - from.y();
+        double dz = to.z() - from.z();
+        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (distance < 1.0E-6) {
+            return true;
+        }
+        int steps = Math.max(2, (int) Math.ceil(distance / 0.25));
+        for (int i = 1; i < steps; i++) {
+            double t = i / (double) steps;
+            int x = floor(from.x() + dx * t);
+            int y = floor(from.y() + dy * t);
+            int z = floor(from.z() + dz * t);
+            if (isSolid(x, y, z)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean isSolid(int x, int y, int z) {
+        int blockState = blockStateAt(x, y, z);
+        return blockState != -1 && isCollisionBlocking(blockState);
+    }
+
+    public boolean isLiquidLike(Vec3 position) {
+        return isLiquidBlock(floor(position.x()), floor(position.y() + 0.1), floor(position.z()))
+                || isLiquidBlock(floor(position.x()), floor(position.y() + 0.9), floor(position.z()));
+    }
+
+    public boolean isLiquidBlock(int x, int y, int z) {
+        int blockState = blockStateAt(x, y, z);
+        return isLikelyWaterOrLava(blockState)
+                || (blockState > 0 && !isCollisionBlocking(blockState) && !isLikelyVegetation(blockState));
+    }
+
+    public boolean isAirBlock(int x, int y, int z) {
+        return blockStateAt(x, y, z) == 0;
+    }
+
+    public boolean isWaterSurface(int x, int y, int z) {
+        return isLiquidBlock(x, y, z)
+                && !isSolid(x, y + 1, z)
+                && isAirBlock(x, y + 1, z);
+    }
+
+    public int blockStateAt(int x, int y, int z) {
         ChunkSection section = section(x, y, z);
         Integer explicit = explicitBlocks.get(blockKey(x, y, z));
         if (explicit != null) {
-            return isCollisionBlocking(explicit);
+            return explicit;
         }
         if (overrideChunks.contains(chunkKey(Math.floorDiv(x, 16), Math.floorDiv(z, 16)))) {
-            return false;
+            return 0;
         }
         if (section == null) {
-            return false;
+            return -1;
         }
-        return isCollisionBlocking(section.getBlock(Math.floorMod(x, 16), Math.floorMod(y, 16), Math.floorMod(z, 16)));
+        return section.getBlock(Math.floorMod(x, 16), Math.floorMod(y, 16), Math.floorMod(z, 16));
     }
 
     public void setBlockForTesting(int x, int y, int z, int blockState) {
@@ -161,6 +220,8 @@ public final class WorldBlockCache {
         long chunkKey = chunkKey(chunkX, chunkZ);
         overrideChunks.add(chunkKey);
         ChunkColumn column = chunks.computeIfAbsent(chunkKey, ignored -> new ChunkColumn());
+        chunkUpdates.put(chunkKey, System.currentTimeMillis());
+        surfaceSnapshots.remove(chunkKey);
         int sectionY = Math.floorDiv(y, 16);
         ChunkSection section = column.sections.computeIfAbsent(sectionY, ignored -> emptySection());
         explicitBlocks.put(blockKey(x, y, z), blockState);
@@ -185,6 +246,10 @@ public final class WorldBlockCache {
         return true;
     }
 
+    private static boolean isLikelyWaterOrLava(int blockState) {
+        return blockState >= 34 && blockState <= 84;
+    }
+
     private void setBlock(BlockChangeEntry entry) {
         int x = entry.getPosition().getX();
         int y = entry.getPosition().getY();
@@ -193,7 +258,123 @@ public final class WorldBlockCache {
         if (section != null) {
             explicitBlocks.put(blockKey(x, y, z), entry.getBlock());
             section.setBlock(Math.floorMod(x, 16), Math.floorMod(y, 16), Math.floorMod(z, 16), entry.getBlock());
+            long chunkKey = chunkKey(Math.floorDiv(x, 16), Math.floorDiv(z, 16));
+            chunkUpdates.put(chunkKey, System.currentTimeMillis());
+            surfaceSnapshots.remove(chunkKey);
         }
+    }
+
+    public List<ChunkSnapshot> chunkSnapshots() {
+        return chunks.keySet().stream()
+                .map(this::cachedSurfaceSnapshot)
+                .toList();
+    }
+
+    private ChunkSnapshot cachedSurfaceSnapshot(long key) {
+        long updatedAt = chunkUpdates.getOrDefault(key, 0L);
+        ChunkSnapshot cached = surfaceSnapshots.get(key);
+        if (cached != null && cached.updatedAtMillis() == updatedAt) {
+            return cached;
+        }
+        ChunkSnapshot next = surfaceSnapshot(key);
+        surfaceSnapshots.put(key, next);
+        return next;
+    }
+
+    private ChunkSnapshot surfaceSnapshot(long key) {
+        int chunkX = chunkX(key);
+        int chunkZ = chunkZ(key);
+        int[] colors = new int[16 * 16];
+        int[] heights = new int[16 * 16];
+        java.util.Arrays.fill(heights, Integer.MIN_VALUE);
+        int minHeight = Integer.MAX_VALUE;
+        int maxHeight = Integer.MIN_VALUE;
+        for (int localZ = 0; localZ < 16; localZ++) {
+            for (int localX = 0; localX < 16; localX++) {
+                int blockX = chunkX * 16 + localX;
+                int blockZ = chunkZ * 16 + localZ;
+                int index = localZ * 16 + localX;
+                SurfaceBlock top = highestVisibleBlock(blockX, blockZ);
+                if (top != null) {
+                    int color = DynmapBlockColors.shaded(surfaceColor(top.blockState()), top.y());
+                    colors[index] = color;
+                    heights[index] = top.y();
+                    minHeight = Math.min(minHeight, top.y());
+                    maxHeight = Math.max(maxHeight, top.y());
+                }
+            }
+        }
+        boolean hasSurface = maxHeight != Integer.MIN_VALUE;
+        return new ChunkSnapshot(
+                chunkX,
+                chunkZ,
+                chunkUpdates.getOrDefault(key, 0L),
+                hasSurface ? minHeight : 0,
+                hasSurface ? maxHeight : 0,
+                encodeColors(colors),
+                encodeHeights(heights)
+        );
+    }
+
+    private SurfaceBlock highestVisibleBlock(int x, int z) {
+        for (int sectionY = MIN_SECTION_Y + SECTION_COUNT - 1; sectionY >= MIN_SECTION_Y; sectionY--) {
+            ChunkSection section = section(x, sectionY * 16, z);
+            if (section == null) {
+                continue;
+            }
+            for (int localY = 15; localY >= 0; localY--) {
+                int y = sectionY * 16 + localY;
+                int blockState = blockStateAt(x, y, z);
+                if (isVisibleSurfaceBlock(blockState)) {
+                    return new SurfaceBlock(y, blockState);
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isVisibleSurfaceBlock(int blockState) {
+        return blockState > 0;
+    }
+
+    private int surfaceColor(int blockState) {
+        if (!isCollisionBlocking(blockState) && !isLikelyVegetation(blockState)) {
+            return DynmapBlockColors.WATER;
+        }
+        return DynmapBlockColors.topColor(blockState);
+    }
+
+    private boolean isLikelyVegetation(int blockState) {
+        return (blockState >= 20 && blockState <= 28)
+                || (blockState >= 118 && blockState <= 197)
+                || (blockState >= 1987 && blockState <= 2034)
+                || (blockState >= 8133 && blockState <= 8444)
+                || (blockState >= 12713 && blockState <= 13044);
+    }
+
+    private String encodeColors(int[] colors) {
+        StringBuilder builder = new StringBuilder(colors.length * 6);
+        for (int color : colors) {
+            builder.append(hex((color >> 20) & 0xf));
+            builder.append(hex((color >> 16) & 0xf));
+            builder.append(hex((color >> 12) & 0xf));
+            builder.append(hex((color >> 8) & 0xf));
+            builder.append(hex((color >> 4) & 0xf));
+            builder.append(hex(color & 0xf));
+        }
+        return builder.toString();
+    }
+
+    private List<Integer> encodeHeights(int[] heights) {
+        List<Integer> encoded = new java.util.ArrayList<>(heights.length);
+        for (int height : heights) {
+            encoded.add(height == Integer.MIN_VALUE ? -999 : height);
+        }
+        return encoded;
+    }
+
+    private char hex(int value) {
+        return (char) (value < 10 ? '0' + value : 'a' + value - 10);
     }
 
     private ChunkSection section(int x, int y, int z) {
@@ -227,6 +408,26 @@ public final class WorldBlockCache {
         int value = (int) ((key >> 12) & 0x3ffffff);
         return value >= 0x2000000 ? value - 0x4000000 : value;
     }
+
+    private static int chunkX(long key) {
+        return (int) (key >> 32);
+    }
+
+    private static int chunkZ(long key) {
+        return (int) key;
+    }
+
+    public record ChunkSnapshot(
+            int chunkX,
+            int chunkZ,
+            long updatedAtMillis,
+            int minY,
+            int maxY,
+            String colors,
+            List<Integer> heights
+    ) { }
+
+    private record SurfaceBlock(int y, int blockState) { }
 
     private static final class ChunkColumn {
         private final Map<Integer, ChunkSection> sections = new ConcurrentHashMap<>();

@@ -32,6 +32,10 @@ public record Vec3(double x, double y, double z) {
         return dx * dx + dy * dy + dz * dz;
     }
 
+    public double distanceTo(Vec3 other) {
+        return Math.sqrt(distanceSquaredTo(other));
+    }
+
     public Vec3 horizontalNormalize() {
         double length = Math.sqrt(x * x + z * z);
         if (length < 1.0E-6) {

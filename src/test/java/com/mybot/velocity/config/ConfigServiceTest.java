@@ -19,6 +19,8 @@ class ConfigServiceTest {
         service.initialize();
         assertThat(service.bots()).isEmpty();
         assertThat(service.graphs()).isNotEmpty();
+        assertThat(service.globalConfig().dashboard().enabled()).isTrue();
+        assertThat(service.globalConfig().dashboard().port()).isEqualTo(8080);
         assertThat(tempDir.resolve("hg-bots.yml")).exists();
         service.close();
     }

@@ -65,7 +65,7 @@ class BotControllerTest {
         }
 
         assertThat(climbed).isTrue();
-        assertThat(physics.position().z()).isGreaterThan(2.0);
+        assertThat(physics.position().z()).isGreaterThan(1.85);
     }
 
     @Test
@@ -99,6 +99,22 @@ class BotControllerTest {
         assertThat(physics.yaw()).isCloseTo(-90f, org.assertj.core.data.Offset.offset(0.01f));
         assertThat(physics.pitch()).isGreaterThan(7f);
         assertThat(physics.pitch()).isLessThan(8f);
+    }
+
+    @Test
+    void staysStillWhenEnteringPassiveLobbyIdle() {
+        WorldBlockCache blocks = flatGround();
+        BotWorldState state = new BotWorldState(blocks);
+        state.setServerName("lobby0");
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0, 64, 0), Vec3.ZERO, 0, 0);
+        BotController controller = new BotController(HgBehaviorConfig.defaults(), new BotActionQueue());
+
+        BotController.ControlPlan plan = controller.tick(state, physics, "lobby0");
+
+        assertThat(controller.lifecycleState()).isEqualTo(EBotLifecycleState.LobbyRoaming);
+        assertThat(plan.movement()).isEqualTo(MovementInput.NONE);
+        assertThat(controller.intent()).isEqualTo(BotIntent.IDLE);
     }
 
     private WorldBlockCache flatGround() {

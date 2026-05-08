@@ -43,7 +43,7 @@ public final class Pathfinder {
                 if (closed.contains(neighbor)) {
                     continue;
                 }
-                double nextCost = costSoFar.get(current) + movementCost(current, neighbor);
+                double nextCost = costSoFar.get(current) + movementCost(blocks, current, neighbor);
                 if (nextCost < costSoFar.getOrDefault(neighbor, Double.POSITIVE_INFINITY)) {
                     costSoFar.put(neighbor, nextCost);
                     cameFrom.put(neighbor, current);
@@ -56,6 +56,13 @@ public final class Pathfinder {
 
     private List<PathNode> neighbors(WorldBlockCache blocks, PathNode node) {
         List<PathNode> result = new ArrayList<>();
+        if (insideWaterColumn(blocks, node) && !swimmableSurface(blocks, node)) {
+            PathNode up = new PathNode(node.x(), node.y() + 1, node.z());
+            if (insideWaterColumn(blocks, up) || swimmableSurface(blocks, up)) {
+                result.add(up);
+            }
+            return result;
+        }
         int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
         for (int[] dir : dirs) {
             for (int dy : new int[]{0, 1, -1}) {
@@ -70,8 +77,23 @@ public final class Pathfinder {
     }
 
     public boolean walkable(WorldBlockCache blocks, PathNode node) {
+        return walkableOnLand(blocks, node) || swimmableSurface(blocks, node);
+    }
+
+    private boolean walkableOnLand(WorldBlockCache blocks, PathNode node) {
         return blocks.isSolid(node.x(), node.y() - 1, node.z())
                 && !blocks.isSolid(node.x(), node.y(), node.z())
+                && !blocks.isSolid(node.x(), node.y() + 1, node.z());
+    }
+
+    private boolean swimmableSurface(WorldBlockCache blocks, PathNode node) {
+        return blocks.isWaterSurface(node.x(), node.y(), node.z())
+                && blocks.isAirBlock(node.x(), node.y() + 1, node.z())
+                && blocks.isAirBlock(node.x(), node.y() + 2, node.z());
+    }
+
+    private boolean insideWaterColumn(WorldBlockCache blocks, PathNode node) {
+        return blocks.isLiquidBlock(node.x(), node.y(), node.z())
                 && !blocks.isSolid(node.x(), node.y() + 1, node.z());
     }
 
@@ -103,12 +125,13 @@ public final class Pathfinder {
         return Math.sqrt(dx * dx + dz * dz) <= goalRadius && Math.abs(current.y() - goal.y()) <= 1;
     }
 
-    private double movementCost(PathNode from, PathNode to) {
+    private double movementCost(WorldBlockCache blocks, PathNode from, PathNode to) {
         int dx = Math.abs(to.x() - from.x());
         int dz = Math.abs(to.z() - from.z());
         int dy = Math.abs(to.y() - from.y());
         double horizontal = dx + dz == 2 ? 1.414 : 1.0;
-        return horizontal + dy * 0.35;
+        double waterPenalty = swimmableSurface(blocks, to) ? 0.35 : 0.0;
+        return horizontal + dy * 0.35 + waterPenalty;
     }
 
     private double heuristic(PathNode node, PathNode goal) {

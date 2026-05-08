@@ -42,6 +42,12 @@ public interface BotAction {
         public void execute(BotSession session) { session.setSneaking(false); }
     }
 
+    record SetFlying(boolean flying) implements BotAction {
+        public String key() { return "flying"; }
+        public long cooldownMillis() { return 250; }
+        public void execute(BotSession session) { session.setFlying(flying); }
+    }
+
     record SwingMainHand() implements BotAction {
         public String key() { return "swing"; }
         public long cooldownMillis() { return 450; }
@@ -66,9 +72,33 @@ public interface BotAction {
         public void execute(BotSession session) { session.useItemOn(position, face); }
     }
 
+    record StartDigBlock(Vector3i position, Direction face) implements BotAction {
+        public String key() { return "dig"; }
+        public long cooldownMillis() { return 180; }
+        public void execute(BotSession session) { session.startDigging(position, face); }
+    }
+
+    record FinishDigBlock(Vector3i position, Direction face) implements BotAction {
+        public String key() { return "dig"; }
+        public long cooldownMillis() { return 180; }
+        public void execute(BotSession session) { session.finishDigging(position, face); }
+    }
+
+    record CraftRecipe(int recipeId, String fallbackName) implements BotAction {
+        public String key() { return "craft"; }
+        public long cooldownMillis() { return 650; }
+        public void execute(BotSession session) { session.craftRecipe(recipeId, fallbackName); }
+    }
+
     record DropItem() implements BotAction {
         public String key() { return "drop"; }
         public long cooldownMillis() { return 250; }
         public void execute(BotSession session) { session.dropSelectedItem(); }
+    }
+
+    record Say(String message) implements BotAction {
+        public String key() { return "say"; }
+        public long cooldownMillis() { return 5000; }
+        public void execute(BotSession session) { session.sendCommand("say " + message); }
     }
 }

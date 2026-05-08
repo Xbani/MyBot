@@ -4,10 +4,10 @@ import com.mybot.velocity.bot.BotManager;
 import com.mybot.velocity.command.MyBotCommand;
 import com.mybot.velocity.config.ConfigService;
 import com.mybot.velocity.config.GlobalConfig;
+import com.mybot.velocity.dashboard.DashboardEndpoint;
 import com.mybot.velocity.demo.BotSkinRegistry;
 import com.mybot.velocity.demo.DemoScenarioLoader;
 import com.mybot.velocity.metrics.BotMetrics;
-import com.mybot.velocity.metrics.MetricsEndpoint;
 import com.mybot.velocity.navigation.NavigationService;
 import com.mybot.velocity.schematic.SchematicService;
 import com.velocitypowered.api.command.CommandMeta;
@@ -38,7 +38,8 @@ public final class MyBotPlugin {
     private ConfigService configService;
     private BotManager botManager;
     private DemoScenarioLoader demoScenarioLoader;
-    private MetricsEndpoint metricsEndpoint;
+    private DashboardEndpoint dashboardEndpoint;
+    private BotMetrics botMetrics;
     private BotSkinRegistry skinRegistry;
     private final AtomicBoolean demoStarted = new AtomicBoolean(false);
 
@@ -58,7 +59,7 @@ public final class MyBotPlugin {
             NavigationService navigationService = new NavigationService(logger);
             SchematicService schematicService = new SchematicService(
                     configService.resolve(globalConfig.dataFolders().schematicsDir()), logger);
-            BotMetrics botMetrics = new BotMetrics();
+            botMetrics = new BotMetrics();
             skinRegistry = new BotSkinRegistry();
             botManager = new BotManager(configService, navigationService, schematicService, botMetrics,
                     dataDirectory.resolve("recordings"), logger);
@@ -69,9 +70,12 @@ public final class MyBotPlugin {
                     .build();
             proxyServer.getCommandManager().register(meta,
                     new MyBotCommand(botManager, configService, demoScenarioLoader, dataDirectory.resolve("recordings"), logger));
-            metricsEndpoint = new MetricsEndpoint(botMetrics,
-                    new java.net.InetSocketAddress(globalConfig.velocityEndpoint().getHostString(), 0),
-                    logger);
+            if (globalConfig.dashboard().enabled()) {
+                dashboardEndpoint = new DashboardEndpoint(
+                        () -> botManager.dashboardStateJson("local", "Local proxy", globalConfig.dashboard().publicUrl()),
+                        globalConfig.dashboard(),
+                        logger);
+            }
             logger.info("MyBot initialized with {} bots, {} graphs", configService.bots().size(), configService.graphs().size());
         } catch (IOException e) {
             throw new IllegalStateException("Failed to initialize MyBot", e);
@@ -111,8 +115,8 @@ public final class MyBotPlugin {
         if (skinRegistry != null) {
             skinRegistry.clear();
         }
-        if (metricsEndpoint != null) {
-            metricsEndpoint.close();
+        if (dashboardEndpoint != null) {
+            dashboardEndpoint.close();
         }
         if (configService != null) {
             try {

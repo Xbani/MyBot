@@ -154,6 +154,13 @@ public final class ConfigService implements AutoCloseable {
             String botsDir = folders.getOrDefault("bots", "bots").toString();
             String graphsDir = folders.getOrDefault("graphs", "graphs").toString();
             String schematicsDir = folders.getOrDefault("schematics", "schematics").toString();
+            Map<String, Object> dashboard = asMap(map.get("dashboard"));
+            boolean dashboardEnabled = bool(dashboard.get("enabled"), true);
+            String dashboardHost = Optional.ofNullable(dashboard.get("host")).map(Object::toString).orElse("127.0.0.1");
+            int dashboardPort = number(dashboard.get("port"), 8080).intValue();
+            String dashboardPublicUrl = Optional.ofNullable(dashboard.get("public-url")).map(Object::toString).orElse("");
+            String dashboardToken = Optional.ofNullable(dashboard.get("auth-token")).map(Object::toString).orElse("");
+            List<GlobalConfig.DashboardSource> dashboardSources = dashboardSources(dashboard.get("sources"));
 
             return new GlobalConfig(
                     maxBots,
@@ -163,9 +170,27 @@ public final class ConfigService implements AutoCloseable {
                     bool(map.get("demo-enabled"), true),
                     new GlobalConfig.LoggingConfig(level, audits),
                     new GlobalConfig.SchedulerConfig(botTick, graphTick),
-                    new GlobalConfig.DataFolderConfig(botsDir, graphsDir, schematicsDir)
+                    new GlobalConfig.DataFolderConfig(botsDir, graphsDir, schematicsDir),
+                    new GlobalConfig.DashboardConfig(dashboardEnabled, dashboardHost, dashboardPort,
+                            dashboardPublicUrl, dashboardToken, dashboardSources)
             );
         }
+    }
+
+    private List<GlobalConfig.DashboardSource> dashboardSources(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(this::asMap)
+                .map(source -> new GlobalConfig.DashboardSource(
+                        Optional.ofNullable(source.get("id")).map(Object::toString).orElse("proxy"),
+                        Optional.ofNullable(source.get("name")).map(Object::toString).orElse("Proxy"),
+                        Optional.ofNullable(source.get("base-url")).map(Object::toString).orElse(""),
+                        Optional.ofNullable(source.get("token")).map(Object::toString).orElse("")
+                ))
+                .filter(source -> !source.id().isBlank() && !source.baseUrl().isBlank())
+                .toList();
     }
 
     private Map<String, BotDefinition> loadBots() throws IOException {

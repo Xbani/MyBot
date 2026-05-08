@@ -7,5 +7,6 @@ public enum BotIntent {
     FIGHT,
     FLEE,
     HEAL,
+    CRAFT_STONE_SWORD,
     PATH_TO
 }

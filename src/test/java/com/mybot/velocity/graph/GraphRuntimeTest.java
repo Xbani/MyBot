@@ -72,7 +72,8 @@ class GraphRuntimeTest {
                 false,
                 new GlobalConfig.LoggingConfig("INFO", true),
                 new GlobalConfig.SchedulerConfig(Duration.ofMillis(50), Duration.ofMillis(50)),
-                new GlobalConfig.DataFolderConfig("bots", "graphs", "schematics")
+                new GlobalConfig.DataFolderConfig("bots", "graphs", "schematics"),
+                new GlobalConfig.DashboardConfig(false, "127.0.0.1", 8080, "", "", List.of())
         );
         private final TestSession session = new TestSession();
         private final BotPacketBridge bridge = new BotPacketBridge(NOPLogger.NOP_LOGGER);

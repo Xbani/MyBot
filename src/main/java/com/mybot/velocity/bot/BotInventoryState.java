@@ -1,13 +1,18 @@
 package com.mybot.velocity.bot;
 
 import org.geysermc.mcprotocollib.protocol.data.game.item.ItemStack;
+import org.geysermc.mcprotocollib.protocol.data.game.item.component.DataComponentTypes;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.OptionalInt;
 
 public final class BotInventoryState {
     private final ItemStack[] slots = new ItemStack[46];
+    private volatile ItemRegistryConfig registry = ItemRegistryConfig.defaults();
     private int selectedHotbarSlot;
     private int openContainerId;
     private int stateId;
@@ -56,34 +61,92 @@ public final class BotInventoryState {
                 .orElseGet(OptionalInt::empty);
     }
 
+    public void setRegistry(ItemRegistryConfig registry) {
+        if (registry != null) {
+            this.registry = registry;
+        }
+    }
+
+    public boolean hasUsableWeaponSelected() {
+        ItemStack item = selectedHotbarItem();
+        return item != null && weaponScore(item) > 0;
+    }
+
+    public ItemStack selectedHotbarItem() {
+        return slots[36 + Math.floorMod(selectedHotbarSlot, 9)];
+    }
+
     public boolean hasLikelyFoodOrHeal() {
-        return Arrays.stream(slots).anyMatch(item -> item != null && itemScore(item) >= 40);
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.foodScore(item) >= 40);
+    }
+
+    public boolean hasLikelyArmor() {
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.armorScore(item) > 0);
+    }
+
+    public boolean hasUsefulBlocks() {
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.blockScore(item) > 0);
+    }
+
+    public boolean hasUsefulTools() {
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.toolScore(item) > 0);
+    }
+
+    public boolean hasLikelyStoneSword() {
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.weaponScore(item) >= 70);
+    }
+
+    public boolean hasKitFeather() {
+        return Arrays.stream(slots).anyMatch(this::isKitSelector);
+    }
+
+    public List<ItemSnapshot> snapshot() {
+        return java.util.stream.IntStream.range(0, slots.length)
+                .filter(slot -> slots[slot] != null)
+                .mapToObj(slot -> new ItemSnapshot(slot, slots[slot].getId(), slots[slot].getAmount(), itemLabel(slots[slot])))
+                .toList();
     }
 
     public int itemScore(ItemStack item) {
         if (item == null) {
             return 0;
         }
-        return Math.max(weaponScore(item), foodScore(item));
+        return Math.max(Math.max(weaponScore(item), registry.foodScore(item)), registry.utilityScore(item));
     }
 
     public int weaponScore(ItemStack item) {
-        if (item == null) {
-            return 0;
-        }
-        int id = item.getId();
-        // Registry ids vary by version; this is deliberately broad and only provides a local heuristic.
-        if (id <= 0) return 0;
-        if (id >= 800 && id <= 900) return 90;
-        if (id >= 700 && id < 800) return 70;
-        if (id >= 600 && id < 700) return 55;
-        return 10;
+        return registry.weaponScore(item);
     }
 
-    private int foodScore(ItemStack item) {
-        int id = item.getId();
-        if (id <= 0) return 0;
-        if (id >= 900 && id <= 1050) return 50;
-        return 0;
+    private boolean isKitSelector(ItemStack item) {
+        if (item == null || item.getDataComponentsPatch() == null) {
+            return false;
+        }
+        String customName = plainName(item, true);
+        String itemName = plainName(item, false);
+        return customName.contains("kit") || itemName.contains("kit");
     }
+
+    private String plainName(ItemStack item, boolean custom) {
+        try {
+            var component = item.getDataComponentsPatch().get(custom ? DataComponentTypes.CUSTOM_NAME : DataComponentTypes.ITEM_NAME);
+            if (component == null) {
+                return "";
+            }
+            return PlainTextComponentSerializer.plainText().serialize(component).toLowerCase(Locale.ROOT);
+        } catch (RuntimeException ex) {
+            return "";
+        }
+    }
+
+    private String itemLabel(ItemStack item) {
+        String customName = plainName(item, true);
+        if (!customName.isBlank()) {
+            return customName;
+        }
+        String itemName = plainName(item, false);
+        return itemName.isBlank() ? "item:" + item.getId() : itemName;
+    }
+
+    public record ItemSnapshot(int slot, int id, int amount, String name) { }
 }

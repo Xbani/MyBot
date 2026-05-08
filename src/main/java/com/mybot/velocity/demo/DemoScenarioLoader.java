@@ -48,7 +48,7 @@ public final class DemoScenarioLoader {
         }
         HgBotConfig config = loadConfig();
         List<String> usernames = nameGenerator.generate(config.count(), config.names());
-        logger.info("Spawning HG-Bots {}", usernames);
+        logger.debug("Spawning HG-Bots {}", usernames);
         return CompletableFuture.allOf(usernames.stream()
                 .map(username -> {
                     registerSkin(username, config);
@@ -61,7 +61,7 @@ public final class DemoScenarioLoader {
     }
 
     public void stopDemo() {
-        logger.info("Stopping HG-Bots");
+        logger.debug("Stopping HG-Bots");
         spawnedBotIds.forEach(bot -> botManager.despawnBot(bot, "demo-stop"));
         spawnedBotIds.clear();
         spawnedUsernames.forEach(skinRegistry::unregister);
@@ -70,6 +70,9 @@ public final class DemoScenarioLoader {
 
     private BotDefinition toDefinition(String username, HgBotConfig config) {
         Map<String, Object> traits = new java.util.LinkedHashMap<>(loadBehaviorTraits());
+        traits.putAll(config.behavior());
+        String baseName = username.startsWith("Bot_") ? username.substring("Bot_".length()) : username;
+        traits.putAll(config.behaviorProfiles().getOrDefault(baseName, Map.of()));
         traits.put("type", "HG-Bot");
         return new BotDefinition(
                 "hg_bot_" + username.substring("Bot_".length()).toLowerCase(),
@@ -90,12 +93,14 @@ public final class DemoScenarioLoader {
             String initialServer = Objects.toString(map.getOrDefault("initial-server", "hg2"));
             String assignedGraph = Objects.toString(map.getOrDefault("assigned-graph", "hg_bot"));
             List<String> names = stringList(map.get("names"));
+            Map<String, Object> behavior = asMap(map.get("behavior"));
+            Map<String, Map<String, Object>> behaviorProfiles = nestedMap(map.get("behavior-profiles"));
             java.util.Optional<HgBotSkin> defaultSkin = parseSkin(asMap(map.get("skin")), "skin");
             Map<String, HgBotSkin> skins = parseSkins(asMap(map.get("skins")));
-            return new HgBotConfig(count, initialServer, assignedGraph, names, defaultSkin.orElse(null), skins);
+            return new HgBotConfig(count, initialServer, assignedGraph, names, behavior, behaviorProfiles, defaultSkin.orElse(null), skins);
         } catch (IOException ex) {
             logger.warn("Unable to read {}, using defaults", CONFIG_FILE, ex);
-            return new HgBotConfig(2, "hg2", "hg_bot", HgBotNameGenerator.DEFAULT_NAMES, null, Map.of());
+            return new HgBotConfig(2, "hg2", "hg_bot", HgBotNameGenerator.DEFAULT_NAMES, Map.of(), Map.of(), null, Map.of());
         }
     }
 
@@ -146,6 +151,15 @@ public final class DemoScenarioLoader {
         return Map.of();
     }
 
+    private Map<String, Map<String, Object>> nestedMap(Object value) {
+        Map<String, Object> raw = asMap(value);
+        Map<String, Map<String, Object>> result = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : raw.entrySet()) {
+            result.put(entry.getKey(), asMap(entry.getValue()));
+        }
+        return result;
+    }
+
     private List<String> stringList(Object value) {
         if (value instanceof List<?> list) {
             return list.stream().map(Object::toString).toList();
@@ -167,5 +181,6 @@ public final class DemoScenarioLoader {
     }
 
     private record HgBotConfig(int count, String initialServer, String assignedGraph, List<String> names,
+                               Map<String, Object> behavior, Map<String, Map<String, Object>> behaviorProfiles,
                                HgBotSkin defaultSkin, Map<String, HgBotSkin> skins) { }
 }
