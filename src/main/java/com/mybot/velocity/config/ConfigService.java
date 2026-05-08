@@ -85,6 +85,7 @@ public final class ConfigService implements AutoCloseable {
         copyResource("config.yml", resolveDataPath("config.yml"));
         copyResource("hg-bots.yml", resolveDataPath("hg-bots.yml"));
         copyResource("hg-behavior.yml", resolveDataPath("hg-behavior.yml"));
+        mergeBundledDefaults("hg-behavior.yml", resolveDataPath("hg-behavior.yml"));
         for (String sample : SAMPLE_BOT_FILES) {
             copyResource(sample, resolveDataPath(sample));
         }
@@ -93,6 +94,35 @@ public final class ConfigService implements AutoCloseable {
         }
         for (String sample : SAMPLE_SCHEMATICS) {
             copyResource(sample, resolveDataPath(sample));
+        }
+    }
+
+    private void mergeBundledDefaults(String resource, Path target) throws IOException {
+        if (!Files.exists(target)) {
+            return;
+        }
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
+            if (stream == null) {
+                return;
+            }
+            Map<String, Object> defaults = asMap(yaml.load(stream));
+            Map<String, Object> current;
+            try (Reader reader = Files.newBufferedReader(target)) {
+                current = asMap(yaml.load(reader));
+            }
+            boolean changed = false;
+            for (Map.Entry<String, Object> entry : defaults.entrySet()) {
+                if (!current.containsKey(entry.getKey())) {
+                    current.put(entry.getKey(), entry.getValue());
+                    changed = true;
+                }
+            }
+            if (changed) {
+                try (var writer = Files.newBufferedWriter(target)) {
+                    yaml.dump(current, writer);
+                }
+                logger.info("Merged missing default keys into {}", target);
+            }
         }
     }
 

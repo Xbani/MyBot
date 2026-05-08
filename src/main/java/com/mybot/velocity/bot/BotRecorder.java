@@ -1,6 +1,7 @@
 package com.mybot.velocity.bot;
 
 import com.mybot.velocity.behavior.BotIntent;
+import com.mybot.velocity.behavior.BotDebugSnapshot;
 import com.mybot.velocity.navigation.PathNode;
 
 import java.io.BufferedWriter;
@@ -99,12 +100,35 @@ public final class BotRecorder {
             MovementInput input,
             float health,
             int food,
+            BotDebugSnapshot debug,
+            List<BotInventoryState.ItemSnapshot> inventory,
             Optional<TargetSnapshot> target,
             List<PlayerSnapshot> players,
             List<PathNode> path,
             Vec3 pathTarget,
             boolean pathStuck
     ) {
+        public Snapshot(Instant at,
+                        BotIntent intent,
+                        Vec3 position,
+                        Vec3 velocity,
+                        float yaw,
+                        float pitch,
+                        boolean onGround,
+                        boolean horizontalCollision,
+                        boolean chunksLoaded,
+                        MovementInput input,
+                        float health,
+                        int food,
+                        Optional<TargetSnapshot> target,
+                        List<PlayerSnapshot> players,
+                        List<PathNode> path,
+                        Vec3 pathTarget,
+                        boolean pathStuck) {
+            this(at, intent, position, velocity, yaw, pitch, onGround, horizontalCollision, chunksLoaded, input,
+                    health, food, BotDebugSnapshot.empty(), List.of(), target, players, path, pathTarget, pathStuck);
+        }
+
         public static Snapshot from(BotIntent intent,
                                     Vec3 position,
                                     Vec3 velocity,
@@ -113,6 +137,8 @@ public final class BotRecorder {
                                     BotPhysics.PhysicsTick tick,
                                     float health,
                                     int food,
+                                    BotDebugSnapshot debug,
+                                    List<BotInventoryState.ItemSnapshot> inventory,
                                     Optional<TrackedPlayer> target,
                                     Collection<TrackedPlayer> players,
                                     List<PathNode> path,
@@ -131,6 +157,8 @@ public final class BotRecorder {
                     tick.input(),
                     health,
                     food,
+                    debug,
+                    List.copyOf(inventory),
                     target.map(TargetSnapshot::from),
                     players.stream().map(PlayerSnapshot::from).toList(),
                     List.copyOf(path),
@@ -155,6 +183,8 @@ public final class BotRecorder {
             input(json, input).append(',');
             json.append("\"health\":").append(health).append(',');
             json.append("\"food\":").append(food).append(',');
+            debug(json, debug).append(',');
+            inventory(json, inventory).append(',');
             json.append("\"pathStuck\":").append(pathStuck).append(',');
             vec(json, "pathTarget", pathTarget).append(',');
             json.append("\"target\":");
@@ -186,6 +216,41 @@ public final class BotRecorder {
                     .append(",\"sprint\":").append(input.sprint())
                     .append(",\"sneak\":").append(input.sneak())
                     .append('}');
+            return json;
+        }
+
+        private static StringBuilder debug(StringBuilder json, BotDebugSnapshot debug) {
+            json.append("\"ai\":{");
+            field(json, "lifecycle", debug.lifecycle().name()).append(',');
+            field(json, "intent", debug.intent().name()).append(',');
+            field(json, "reason", debug.reason()).append(',');
+            field(json, "invincibilityStage", debug.invincibilityStage()).append(',');
+            field(json, "lastCraft", debug.lastCraft()).append(',');
+            field(json, "craftFailure", debug.craftFailure()).append(',');
+            field(json, "lastMine", debug.lastMine()).append(',');
+            field(json, "goal", debug.goal()).append(',');
+            field(json, "subGoal", debug.subGoal()).append(',');
+            field(json, "nextStep", debug.nextStep()).append(',');
+            field(json, "blocker", debug.blocker()).append(',');
+            field(json, "lastResourceTarget", debug.lastResourceTarget()).append(',');
+            json.append("\"openContainerId\":").append(debug.openContainerId()).append(',');
+            json.append("\"panic\":").append(debug.panic()).append(',');
+            json.append("\"confidence\":").append(debug.confidence());
+            json.append('}');
+            return json;
+        }
+
+        private static StringBuilder inventory(StringBuilder json, List<BotInventoryState.ItemSnapshot> inventory) {
+            json.append("\"inventory\":[");
+            for (int i = 0; i < inventory.size(); i++) {
+                if (i > 0) json.append(',');
+                BotInventoryState.ItemSnapshot item = inventory.get(i);
+                json.append("{\"slot\":").append(item.slot())
+                        .append(",\"id\":").append(item.id())
+                        .append(",\"amount\":").append(item.amount()).append(',');
+                field(json, "name", item.name()).append('}');
+            }
+            json.append(']');
             return json;
         }
 

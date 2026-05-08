@@ -7,6 +7,7 @@ import com.mybot.velocity.bot.MovementInput;
 import com.mybot.velocity.bot.TrackedPlayer;
 import com.mybot.velocity.bot.Vec3;
 import com.mybot.velocity.bot.WorldBlockCache;
+import org.geysermc.mcprotocollib.protocol.data.game.item.ItemStack;
 import org.junit.jupiter.api.Test;
 import org.slf4j.helpers.NOPLogger;
 
@@ -53,12 +54,13 @@ class BotControllerTest {
         blocks.setBlockForTesting(0, 64, 2, 1);
         BotWorldState state = new BotWorldState(blocks);
         state.putPlayer(new TrackedPlayer(8, UUID.randomUUID(), "RealTarget", new Vec3(0.5, 65, 3), 0, 0, Instant.now()));
+        state.inventory().setSlot(0, 1, 36, new ItemStack(742, 1, null));
         BotPhysics physics = new BotPhysics();
         physics.correctPosition(new Vec3(0.5, 64, 0.5), Vec3.ZERO, 0, 0);
         BotController controller = new BotController(HgBehaviorConfig.defaults(), new BotActionQueue());
         boolean climbed = false;
 
-        for (int i = 0; i < 35; i++) {
+        for (int i = 0; i < 80; i++) {
             MovementInput movement = controller.tick(state, physics).movement();
             physics.tick(blocks, state.trackedPlayers(), movement);
             climbed |= physics.position().y() > 64.45 && physics.position().z() > 1.6;

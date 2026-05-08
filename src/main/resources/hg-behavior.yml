@@ -69,6 +69,22 @@ block-items:
   - "1-28:25"
 tool-items:
   - "500-599:45"
+log-items:
+  - "84-117"
+  - "6570-6725"
+plank-items:
+  - "14-19"
+cobblestone-items:
+  - "1"
+stick-items:
+  - "550"
+crafting-table-items:
+  - "890"
+wooden-pickaxe-items:
+  - "501"
+stone-sword-items:
+  - "798"
+recipe-planks-id: -1
 recipe-crafting-table-id: -1
 recipe-sticks-id: -1
 recipe-wooden-pickaxe-id: -1

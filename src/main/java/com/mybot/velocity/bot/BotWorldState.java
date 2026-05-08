@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentMap;
 public final class BotWorldState {
     private final WorldBlockCache blocks;
     private final BotInventoryState inventory = new BotInventoryState();
+    private final BotRecipeBook recipeBook = new BotRecipeBook();
     private final BotScoreboardState scoreboard = new BotScoreboardState();
     private final ConcurrentMap<UUID, String> playerNames = new ConcurrentHashMap<>();
     private final ConcurrentMap<Integer, TrackedPlayer> playersByEntity = new ConcurrentHashMap<>();
@@ -38,6 +39,10 @@ public final class BotWorldState {
 
     public BotInventoryState inventory() {
         return inventory;
+    }
+
+    public BotRecipeBook recipeBook() {
+        return recipeBook;
     }
 
     public BotScoreboardState scoreboard() {

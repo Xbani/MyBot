@@ -47,6 +47,10 @@ public final class BotInventoryState {
         return openContainerId;
     }
 
+    public void setOpenContainerId(int openContainerId) {
+        this.openContainerId = openContainerId;
+    }
+
     public int stateId() {
         return stateId;
     }
@@ -93,7 +97,64 @@ public final class BotInventoryState {
     }
 
     public boolean hasLikelyStoneSword() {
-        return Arrays.stream(slots).anyMatch(item -> item != null && registry.weaponScore(item) >= 70);
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.isStoneSword(item));
+    }
+
+    public boolean hasItemId(int itemId) {
+        return itemId > 0 && Arrays.stream(slots).anyMatch(item -> item != null && item.getId() == itemId);
+    }
+
+    public int countItemId(int itemId) {
+        if (itemId <= 0) {
+            return 0;
+        }
+        return Arrays.stream(slots)
+                .filter(item -> item != null && item.getId() == itemId)
+                .mapToInt(ItemStack::getAmount)
+                .sum();
+    }
+
+    public boolean hasCraftingTable() {
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.isCraftingTable(item));
+    }
+
+    public OptionalInt craftingTableSlot() {
+        return java.util.stream.IntStream.range(0, slots.length)
+                .filter(slot -> slots[slot] != null && registry.isCraftingTable(slots[slot]))
+                .findFirst();
+    }
+
+    public OptionalInt craftingTableHotbarSlot() {
+        return java.util.stream.IntStream.range(0, 9)
+                .filter(slot -> slots[36 + slot] != null && registry.isCraftingTable(slots[36 + slot]))
+                .findFirst();
+    }
+
+    public boolean hasWoodenPickaxe() {
+        return Arrays.stream(slots).anyMatch(item -> item != null && registry.isWoodenPickaxe(item));
+    }
+
+    public int logCount() {
+        return count(registry::isLog);
+    }
+
+    public int plankCount() {
+        return count(registry::isPlank);
+    }
+
+    public int cobblestoneCount() {
+        return count(registry::isCobblestone);
+    }
+
+    public int stickCount() {
+        return count(registry::isStick);
+    }
+
+    private int count(java.util.function.Predicate<ItemStack> predicate) {
+        return Arrays.stream(slots)
+                .filter(item -> item != null && predicate.test(item))
+                .mapToInt(ItemStack::getAmount)
+                .sum();
     }
 
     public boolean hasKitFeather() {

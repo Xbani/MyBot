@@ -38,6 +38,16 @@ public final class BotResourceScanner {
         return nearest(blocks, origin, radius, chest);
     }
 
+    public boolean isWood(WorldBlockCache blocks, Vector3i position) {
+        return blocks.isSolid(position.getX(), position.getY(), position.getZ())
+                && wood.matches(blocks.blockStateAt(position.getX(), position.getY(), position.getZ()));
+    }
+
+    public boolean isStone(WorldBlockCache blocks, Vector3i position) {
+        return blocks.isSolid(position.getX(), position.getY(), position.getZ())
+                && stone.matches(blocks.blockStateAt(position.getX(), position.getY(), position.getZ()));
+    }
+
     private Optional<Vector3i> nearest(WorldBlockCache blocks, Vec3 origin, int radius, ResourceRanges ranges) {
         int ox = floor(origin.x());
         int oy = floor(origin.y());
@@ -49,6 +59,7 @@ public final class BotResourceScanner {
                         .flatMap(dy -> java.util.stream.IntStream.rangeClosed(-radius, radius)
                                 .mapToObj(dz -> Vector3i.from(ox + dx, oy + dy, oz + dz))))
                 .filter(pos -> Math.abs(pos.getX() - ox) + Math.abs(pos.getZ() - oz) <= radius * 2)
+                .filter(pos -> blocks.isSolid(pos.getX(), pos.getY(), pos.getZ()))
                 .filter(pos -> ranges.matches(blocks.blockStateAt(pos.getX(), pos.getY(), pos.getZ())))
                 .min(Comparator.comparingDouble(pos -> distanceSquared(origin, pos)));
     }

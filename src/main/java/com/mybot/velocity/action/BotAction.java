@@ -18,6 +18,12 @@ public interface BotAction {
         public void execute(BotSession session) { session.setHotbarSlot(slot); }
     }
 
+    record MoveInventorySlotToHotbar(int sourceSlot, int hotbarSlot) implements BotAction {
+        public String key() { return "move-hotbar"; }
+        public long cooldownMillis() { return 220; }
+        public void execute(BotSession session) { session.moveInventorySlotToHotbar(sourceSlot, hotbarSlot); }
+    }
+
     record StartSprint() implements BotAction {
         public String key() { return "sprint"; }
         public long cooldownMillis() { return 120; }

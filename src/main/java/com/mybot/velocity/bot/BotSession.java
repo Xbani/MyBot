@@ -29,6 +29,8 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.Clientbound
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundRespawnPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerInfoRemovePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerInfoUpdatePacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundRecipeBookAddPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundRecipeBookRemovePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundAddEntityPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundMoveEntityPosPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundMoveEntityPosRotPacket;
@@ -69,6 +71,7 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.Serv
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundUseItemPacket;
 import org.geysermc.mcprotocollib.protocol.data.game.inventory.ContainerActionType;
 import org.geysermc.mcprotocollib.protocol.data.game.inventory.DropItemAction;
+import org.geysermc.mcprotocollib.protocol.data.game.inventory.MoveToHotbarAction;
 import org.geysermc.mcprotocollib.protocol.data.game.item.HashedStack;
 import org.slf4j.Logger;
 
@@ -117,7 +120,9 @@ public class BotSession {
         this.worldState = new BotWorldState(blocks);
         this.worldState.setServerName(currentServer);
         this.behaviorConfig = HgBehaviorConfig.fromTraits(definition.traits());
-        this.worldState.inventory().setRegistry(ItemRegistryConfig.fromTraits(definition.traits()));
+        ItemRegistryConfig itemRegistry = ItemRegistryConfig.fromTraits(definition.traits());
+        this.worldState.inventory().setRegistry(itemRegistry);
+        this.worldState.recipeBook().setRegistry(itemRegistry);
         this.controller = new BotController(behaviorConfig, actions,
                 definition.uuid() != null ? definition.uuid().getLeastSignificantBits() : definition.username().hashCode());
         this.recorder = new BotRecorder(definition.id(), definition.username());
@@ -259,6 +264,8 @@ public class BotSession {
                 tick,
                 worldState.health(),
                 worldState.food(),
+                controller.debug(),
+                worldState.inventory().snapshot(),
                 plan.target(),
                 worldState.trackedPlayers(),
                 controller.path(),
@@ -410,13 +417,34 @@ public class BotSession {
         if (active == null || !isConnected()) {
             return;
         }
-        if (recipeId >= 0) {
-            active.send(new ServerboundPlaceRecipePacket(worldState.inventory().openContainerId(), recipeId, false));
+        int resolvedRecipeId = recipeId >= 0
+                ? recipeId
+                : worldState.recipeBook().recipeId(fallbackName).orElse(-1);
+        if (resolvedRecipeId >= 0) {
+            active.send(new ServerboundPlaceRecipePacket(worldState.inventory().openContainerId(), resolvedRecipeId, false));
+            logger.debug("[{}] crafting recipe '{}' via id {}", definition.username(), fallbackName, resolvedRecipeId);
             return;
         }
         if (fallbackName != null && !fallbackName.isBlank()) {
             logger.debug("[{}] craft step '{}' has no configured recipe id yet", definition.username(), fallbackName);
         }
+    }
+
+    public void moveInventorySlotToHotbar(int sourceSlot, int hotbarSlot) {
+        ClientSession active = session;
+        if (active == null || !isConnected() || sourceSlot < 0 || hotbarSlot < 0 || hotbarSlot > 8) {
+            return;
+        }
+        active.send(new ServerboundContainerClickPacket(
+                0,
+                worldState.inventory().stateId(),
+                sourceSlot,
+                ContainerActionType.MOVE_TO_HOTBAR_SLOT,
+                MoveToHotbarAction.from(hotbarSlot),
+                new HashedStack(0, 0, Map.of(), java.util.Set.of()),
+                Map.of()
+        ));
+        logger.debug("[{}] moving inventory slot {} to hotbar {}", definition.username(), sourceSlot, hotbarSlot);
     }
 
     public void dropSelectedItem() {
@@ -448,6 +476,10 @@ public class BotSession {
             applyPlayerInfo(infoPacket);
         } else if (packet instanceof ClientboundPlayerInfoRemovePacket removePacket) {
             removePacket.getProfileIds().forEach(worldState::removePlayerName);
+        } else if (packet instanceof ClientboundRecipeBookAddPacket recipePacket) {
+            worldState.recipeBook().add(recipePacket);
+        } else if (packet instanceof ClientboundRecipeBookRemovePacket recipePacket) {
+            worldState.recipeBook().remove(recipePacket);
         } else if (packet instanceof ClientboundAddEntityPacket addEntityPacket) {
             applyAddEntity(addEntityPacket);
         } else if (packet instanceof ClientboundMoveEntityPosPacket movePacket) {
@@ -484,8 +516,12 @@ public class BotSession {
         } else if (packet instanceof ClientboundContainerSetSlotPacket slotPacket) {
             worldState.inventory().setSlot(slotPacket.getContainerId(), slotPacket.getStateId(), slotPacket.getSlot(), slotPacket.getItem());
         } else if (packet instanceof ClientboundOpenScreenPacket openPacket) {
+            worldState.inventory().setOpenContainerId(openPacket.getContainerId());
             logger.debug("[{}] opened container {}", definition.username(), openPacket.getContainerId());
         } else if (packet instanceof ClientboundContainerClosePacket closePacket) {
+            if (worldState.inventory().openContainerId() == closePacket.getContainerId()) {
+                worldState.inventory().setOpenContainerId(0);
+            }
             logger.debug("[{}] closed container {}", definition.username(), closePacket.getContainerId());
         } else if (packet instanceof ClientboundSetScorePacket scorePacket) {
             worldState.scoreboard().setScore(scorePacket);

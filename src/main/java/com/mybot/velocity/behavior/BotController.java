@@ -134,7 +134,11 @@ public final class BotController {
             intent = BotIntent.CRAFT_STONE_SWORD;
             debug = new BotDebugSnapshot(lifecycleState, intent, "",
                     0, board.panic(), 0, 0, 0, 80, 0, "",
-                    "invincibility:" + plan.stage() + " " + plan.reason());
+                    "invincibility:" + plan.stage() + " " + plan.reason(),
+                    invincibilityPlan.stage().name(), invincibilityPlan.lastCraft(), invincibilityPlan.craftFailure(),
+                    invincibilityPlan.lastMine(), state.inventory().openContainerId(),
+                    invincibilityPlan.goal(), invincibilityPlan.subGoal(), invincibilityPlan.nextStep(),
+                    invincibilityPlan.blocker(), invincibilityPlan.requiredItems(), invincibilityPlan.lastResourceTarget());
             return new ControlPlan(applyWaterAndCrowdMovement(humanize(plan.movement(), board.panic()), physics, board), Optional.empty());
         }
 
@@ -167,7 +171,11 @@ public final class BotController {
             debug = new BotDebugSnapshot(lifecycleState, intent, "",
                     decision.confidence(), board.panic(), decision.threatScore(), decision.fightScore(),
                     decision.fleeScore(), 100, decision.teamScore(), "",
-                    "stone-sword-first:" + plan.stage() + " " + plan.reason());
+                    "stone-sword-first:" + plan.stage() + " " + plan.reason(),
+                    invincibilityPlan.stage().name(), invincibilityPlan.lastCraft(), invincibilityPlan.craftFailure(),
+                    invincibilityPlan.lastMine(), state.inventory().openContainerId(),
+                    invincibilityPlan.goal(), invincibilityPlan.subGoal(), invincibilityPlan.nextStep(),
+                    invincibilityPlan.blocker(), invincibilityPlan.requiredItems(), invincibilityPlan.lastResourceTarget());
             return new ControlPlan(applyWaterAndCrowdMovement(humanize(plan.movement(), board.panic()), physics, board), Optional.empty());
         }
         if (intent == BotIntent.LOOT) {
@@ -708,6 +716,9 @@ public final class BotController {
 
     private MovementInput applyWaterAndCrowdMovement(MovementInput input, BotPhysics physics, BotBlackboard board) {
         MovementInput withCrowd = avoidBots(input, physics, board.visiblePlayers());
+        if (board.state().blocks().isLiquidLike(physics.position()) && !withCrowd.moving()) {
+            withCrowd = new MovementInput(0.65, withCrowd.strafe(), withCrowd.jump(), true, false);
+        }
         if (shouldHoldJumpForSwimming(physics, board) || shouldAutoJumpObstacle(withCrowd, physics, board)) {
             return new MovementInput(withCrowd.forward(), withCrowd.strafe(), true, withCrowd.sprint(), withCrowd.sneak()).clamp();
         }
