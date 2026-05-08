@@ -4,6 +4,7 @@ import com.mybot.velocity.config.BotDefinition;
 import com.mybot.velocity.config.GlobalConfig;
 import com.mybot.velocity.action.BotActionQueue;
 import com.mybot.velocity.behavior.BotController;
+import com.mybot.velocity.behavior.EBotLifecycleState;
 import com.mybot.velocity.behavior.HgBehaviorConfig;
 import org.cloudburstmc.math.vector.Vector3i;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -11,6 +12,7 @@ import org.geysermc.mcprotocollib.protocol.data.game.entity.EntityEvent;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.object.Direction;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.player.Hand;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.player.InteractAction;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.PlayerAction;
 import org.geysermc.mcprotocollib.auth.GameProfile;
 import org.geysermc.mcprotocollib.network.ClientSession;
 import org.geysermc.mcprotocollib.network.Session;
@@ -24,6 +26,7 @@ import org.geysermc.mcprotocollib.protocol.data.game.entity.player.PositionEleme
 import org.geysermc.mcprotocollib.protocol.data.game.entity.type.EntityType;
 import org.geysermc.mcprotocollib.protocol.MinecraftProtocol;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundLoginPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundRespawnPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerInfoRemovePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerInfoUpdatePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundAddEntityPacket;
@@ -34,22 +37,32 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.Clie
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundTeleportEntityPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundEntityEventPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.player.ClientboundSetHealthPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.player.ClientboundSetExperiencePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.player.ClientboundPlayerPositionPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundContainerClosePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundContainerSetContentPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundContainerSetSlotPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundOpenScreenPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.scoreboard.ClientboundResetScorePacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.scoreboard.ClientboundSetPlayerTeamPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.scoreboard.ClientboundSetScorePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.level.ServerboundAcceptTeleportationPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundChatCommandPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundPlayerLoadedPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundBlockUpdatePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundForgetLevelChunkPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundGameEventPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundLevelChunkWithLightPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundSectionBlocksUpdatePacket;
+import org.geysermc.mcprotocollib.protocol.data.game.level.notify.GameEvent;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.GameMode;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.inventory.ServerboundContainerClickPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.inventory.ServerboundPlaceRecipePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.level.ServerboundPlayerInputPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundInteractPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundMovePlayerPosRotPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerActionPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerAbilitiesPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundSetCarriedItemPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundSwingPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundUseItemOnPacket;
@@ -82,6 +95,7 @@ public class BotSession {
     private final WorldBlockCache blocks;
     private final BotWorldState worldState;
     private final BotActionQueue actions = new BotActionQueue();
+    private final HgBehaviorConfig behaviorConfig;
     private final BotController controller;
     private final BotRecorder recorder;
     private volatile Instant lastActivity = Instant.now();
@@ -90,6 +104,7 @@ public class BotSession {
     private volatile ClientSession session;
     private volatile boolean sprinting;
     private volatile boolean sneaking;
+    private volatile boolean flying;
     private volatile MovementInput lastInput = MovementInput.NONE;
     private int sequence;
 
@@ -100,7 +115,11 @@ public class BotSession {
         this.currentServer = definition.initialServer();
         this.blocks = new WorldBlockCache(logger);
         this.worldState = new BotWorldState(blocks);
-        this.controller = new BotController(HgBehaviorConfig.fromTraits(definition.traits()), actions);
+        this.worldState.setServerName(currentServer);
+        this.behaviorConfig = HgBehaviorConfig.fromTraits(definition.traits());
+        this.worldState.inventory().setRegistry(ItemRegistryConfig.fromTraits(definition.traits()));
+        this.controller = new BotController(behaviorConfig, actions,
+                definition.uuid() != null ? definition.uuid().getLeastSignificantBits() : definition.username().hashCode());
         this.recorder = new BotRecorder(definition.id(), definition.username());
     }
 
@@ -117,7 +136,7 @@ public class BotSession {
             @Override
             public void connected(ConnectedEvent event) {
                 lastActivity = Instant.now();
-                logger.info("Network connected bot {} to {}:{}", definition.username(),
+                logger.debug("Network connected bot {} to {}:{}", definition.username(),
                         config.velocityEndpoint().getHostString(), config.velocityEndpoint().getPort());
             }
 
@@ -128,7 +147,7 @@ public class BotSession {
                     entityId = ((ClientboundLoginPacket) packet).getEntityId();
                     eventSession.send(ServerboundPlayerLoadedPacket.INSTANCE);
                     connected.set(true);
-                    logger.info("Bot {} joined game on initial server {}", definition.username(), currentServer);
+                    logger.debug("Bot {} joined game on initial server {}", definition.username(), currentServer);
                     connectedFuture.complete(null);
                     return;
                 }
@@ -141,7 +160,7 @@ public class BotSession {
                 session = null;
                 String reason = PlainTextComponentSerializer.plainText().serialize(event.getReason());
                 disconnectedFuture.complete(reason);
-                logger.info("Bot {} disconnected: {}", definition.username(), reason);
+                logger.debug("Bot {} disconnected: {}", definition.username(), reason);
                 if (!connectedFuture.isDone()) {
                     Throwable cause = event.getCause();
                     connectedFuture.completeExceptionally(cause != null
@@ -151,7 +170,7 @@ public class BotSession {
             }
         });
 
-        logger.info("Connecting bot {} to {}:{}", definition.username(),
+        logger.debug("Connecting bot {} to {}:{}", definition.username(),
                 config.velocityEndpoint().getHostString(), config.velocityEndpoint().getPort());
         session = client;
         try {
@@ -170,7 +189,7 @@ public class BotSession {
             active.disconnect(reason);
         }
         if (connected.compareAndSet(true, false)) {
-            logger.info("Disconnected bot {}: {}", definition.username(), reason);
+            logger.debug("Disconnected bot {}: {}", definition.username(), reason);
         }
         disconnectedFuture.complete(reason);
     }
@@ -188,7 +207,7 @@ public class BotSession {
         }
         String command = commandLine.startsWith("/") ? commandLine.substring(1) : commandLine;
         active.send(new ServerboundChatCommandPacket(command));
-        logger.info("[{}] executing command: {}", definition.username(), commandLine);
+        logger.debug("[{}] executing command: {}", definition.username(), commandLine);
         lastActivity = Instant.now();
     }
 
@@ -199,8 +218,12 @@ public class BotSession {
             return;
         }
         active.send(new ServerboundChatCommandPacket("server " + serverId));
-        logger.info("[{}] hopping to server {}", definition.username(), serverId);
+        logger.debug("[{}] hopping to server {}", definition.username(), serverId);
         currentServer = serverId;
+        worldState.setServerName(serverId);
+        worldState.clearTrackedPlayers();
+        worldState.resetMatchTiming();
+        controller.resetAfterTeleport();
         lastActivity = Instant.now();
     }
 
@@ -221,7 +244,11 @@ public class BotSession {
         if (!isConnected() || active == null) {
             return;
         }
-        BotController.ControlPlan plan = controller.tick(worldState, physics);
+        BotController.ControlPlan plan = controller.tick(worldState, physics, currentServer);
+        if (controller.lifecycleState() == EBotLifecycleState.SpectatorDead && !"lobby0".equalsIgnoreCase(currentServer)) {
+            hopServer("lobby0");
+            return;
+        }
         BotPhysics.PhysicsTick tick = physics.tick(blocks, worldState.trackedPlayers(), plan.movement());
         recorder.record(BotRecorder.Snapshot.from(
                 controller.intent(),
@@ -238,10 +265,10 @@ public class BotSession {
                 controller.pathTarget(),
                 controller.pathStuck()
         ));
+        sendInputPacket(active, tick.input());
         if (!tick.chunksLoaded()) {
             return;
         }
-        sendInputPacket(active, tick.input());
         active.send(new ServerboundMovePlayerPosRotPacket(
                 tick.onGround(),
                 tick.horizontalCollision(),
@@ -253,11 +280,46 @@ public class BotSession {
         ));
         actions.tick(this);
         tick.target().ifPresent(target -> logger.debug("[{}] tracking real player {}", definition.username(), target.username()));
+        if (behaviorConfig.debugLogging()) {
+            var debug = controller.debug();
+            logger.debug("[{}] ai state={} phaseIntent={} target={} confidence={} panic={} fight={} flee={} loot={} team={} reason={}",
+                    definition.username(), debug.lifecycle(), debug.intent(), debug.targetName(),
+                    round(debug.confidence()), round(debug.panic()), round(debug.fightScore()),
+                    round(debug.fleeScore()), round(debug.lootScore()), round(debug.teamScore()), debug.reason());
+        }
         lastActivity = Instant.now();
     }
 
     public BotWorldState worldState() {
         return worldState;
+    }
+
+    public BotPhysics physics() {
+        return physics;
+    }
+
+    public EBotLifecycleState lifecycleState() {
+        return controller.lifecycleState();
+    }
+
+    public com.mybot.velocity.behavior.BotIntent intent() {
+        return controller.intent();
+    }
+
+    public com.mybot.velocity.behavior.BotDebugSnapshot debugSnapshot() {
+        return controller.debug();
+    }
+
+    public java.util.List<com.mybot.velocity.navigation.PathNode> path() {
+        return controller.path();
+    }
+
+    public Vec3 pathTarget() {
+        return controller.pathTarget();
+    }
+
+    public boolean pathStuck() {
+        return controller.pathStuck();
     }
 
     public BotRecorder recorder() {
@@ -298,6 +360,15 @@ public class BotSession {
         this.sneaking = sneaking;
     }
 
+    public void setFlying(boolean flying) {
+        ClientSession active = session;
+        this.flying = flying;
+        physics.setFlying(flying);
+        if (active != null && isConnected()) {
+            active.send(new ServerboundPlayerAbilitiesPacket(flying));
+        }
+    }
+
     public void swingMainHand() {
         ClientSession active = session;
         if (active != null && isConnected()) {
@@ -326,6 +397,28 @@ public class BotSession {
         }
     }
 
+    public void startDigging(Vector3i position, Direction face) {
+        dig(position, face, PlayerAction.START_DIGGING);
+    }
+
+    public void finishDigging(Vector3i position, Direction face) {
+        dig(position, face, PlayerAction.FINISH_DIGGING);
+    }
+
+    public void craftRecipe(int recipeId, String fallbackName) {
+        ClientSession active = session;
+        if (active == null || !isConnected()) {
+            return;
+        }
+        if (recipeId >= 0) {
+            active.send(new ServerboundPlaceRecipePacket(worldState.inventory().openContainerId(), recipeId, false));
+            return;
+        }
+        if (fallbackName != null && !fallbackName.isBlank()) {
+            logger.debug("[{}] craft step '{}' has no configured recipe id yet", definition.username(), fallbackName);
+        }
+    }
+
     public void dropSelectedItem() {
         ClientSession active = session;
         if (active != null && isConnected()) {
@@ -338,6 +431,13 @@ public class BotSession {
                     new HashedStack(0, 0, Map.of(), java.util.Set.of()),
                     Map.of()
             ));
+        }
+    }
+
+    private void dig(Vector3i position, Direction face, PlayerAction action) {
+        ClientSession active = session;
+        if (active != null && isConnected()) {
+            active.send(new ServerboundPlayerActionPacket(action, position, face, nextSequence()));
         }
     }
 
@@ -367,6 +467,18 @@ public class BotSession {
             applyEntityEvent(eventPacket);
         } else if (packet instanceof ClientboundSetHealthPacket healthPacket) {
             worldState.updateHealth(healthPacket.getHealth(), healthPacket.getFood(), healthPacket.getSaturation());
+        } else if (packet instanceof ClientboundSetExperiencePacket experiencePacket) {
+            worldState.updateExperience(experiencePacket.getExperience(), experiencePacket.getLevel(), experiencePacket.getTotalExperience());
+        } else if (packet instanceof ClientboundRespawnPacket respawnPacket) {
+            if (respawnPacket.getCommonPlayerSpawnInfo() != null) {
+                worldState.setGameMode(respawnPacket.getCommonPlayerSpawnInfo().getGameMode());
+            }
+            worldState.clearTrackedPlayers();
+            controller.resetAfterTeleport();
+        } else if (packet instanceof ClientboundGameEventPacket gameEventPacket) {
+            if (gameEventPacket.getNotification() == GameEvent.CHANGE_GAME_MODE && gameEventPacket.getValue() instanceof GameMode mode) {
+                worldState.setGameMode(mode);
+            }
         } else if (packet instanceof ClientboundContainerSetContentPacket contentPacket) {
             worldState.inventory().setContent(contentPacket.getContainerId(), contentPacket.getStateId(), contentPacket.getItems());
         } else if (packet instanceof ClientboundContainerSetSlotPacket slotPacket) {
@@ -375,6 +487,12 @@ public class BotSession {
             logger.debug("[{}] opened container {}", definition.username(), openPacket.getContainerId());
         } else if (packet instanceof ClientboundContainerClosePacket closePacket) {
             logger.debug("[{}] closed container {}", definition.username(), closePacket.getContainerId());
+        } else if (packet instanceof ClientboundSetScorePacket scorePacket) {
+            worldState.scoreboard().setScore(scorePacket);
+        } else if (packet instanceof ClientboundResetScorePacket resetScorePacket) {
+            worldState.scoreboard().resetScore(resetScorePacket);
+        } else if (packet instanceof ClientboundSetPlayerTeamPacket teamPacket) {
+            worldState.scoreboard().setTeam(teamPacket);
         } else if (packet instanceof ClientboundLevelChunkWithLightPacket chunkPacket) {
             blocks.handleChunk(chunkPacket);
         } else if (packet instanceof ClientboundForgetLevelChunkPacket forgetPacket) {
@@ -394,6 +512,11 @@ public class BotSession {
         float nextYaw = packet.getYRot();
         float nextPitch = packet.getXRot();
         physics.correctPosition(nextPosition, nextVelocity, nextYaw, nextPitch);
+        if (current.distanceSquaredTo(nextPosition) > 64.0) {
+            worldState.clearTrackedPlayers();
+            controller.resetAfterTeleport();
+        }
+        worldState.markTeleport();
         eventSession.send(new ServerboundAcceptTeleportationPacket(packet.getId()));
     }
 
@@ -441,8 +564,18 @@ public class BotSession {
 
     private void applyEntityEvent(ClientboundEntityEventPacket packet) {
         if (packet.getEntityId() == entityId && packet.getEvent() == EntityEvent.LIVING_HURT) {
-            worldState.markDamage(-1);
+            worldState.markDamage(inferLikelyAttacker());
         }
+    }
+
+    private int inferLikelyAttacker() {
+        Vec3 position = physics.position();
+        return worldState.trackedPlayers().stream()
+                .filter(player -> position.distanceSquaredTo(player.position()) <= 4.75 * 4.75)
+                .filter(player -> blocks.hasLineOfSight(BotPhysics.eyePosition(position), BotPhysics.bodyAimPosition(player.position())))
+                .min(java.util.Comparator.comparingDouble(player -> position.distanceSquaredTo(player.position())))
+                .map(TrackedPlayer::entityId)
+                .orElse(-1);
     }
 
     private void sendInputPacket(ClientSession active, MovementInput input) {
@@ -463,6 +596,10 @@ public class BotSession {
 
     private int nextSequence() {
         return ++sequence;
+    }
+
+    private double round(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private static UUID offlineUuid(String username) {

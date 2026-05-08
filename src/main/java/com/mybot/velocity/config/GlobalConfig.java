@@ -2,6 +2,7 @@ package com.mybot.velocity.config;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -15,7 +16,8 @@ public record GlobalConfig(
         boolean demoEnabled,
         LoggingConfig logging,
         SchedulerConfig schedulers,
-        DataFolderConfig dataFolders
+        DataFolderConfig dataFolders,
+        DashboardConfig dashboard
 ) {
 
     public GlobalConfig {
@@ -25,6 +27,7 @@ public record GlobalConfig(
         Objects.requireNonNull(logging, "logging");
         Objects.requireNonNull(schedulers, "schedulers");
         Objects.requireNonNull(dataFolders, "dataFolders");
+        Objects.requireNonNull(dashboard, "dashboard");
     }
 
     public record AuthConfig(String mode, String mojangEmail, String mojangPassword) {
@@ -38,4 +41,29 @@ public record GlobalConfig(
     public record SchedulerConfig(Duration botTick, Duration graphTick) { }
 
     public record DataFolderConfig(String botsDir, String graphsDir, String schematicsDir) { }
+
+    public record DashboardConfig(
+            boolean enabled,
+            String host,
+            int port,
+            String publicUrl,
+            String authToken,
+            List<DashboardSource> sources
+    ) {
+        public DashboardConfig {
+            Objects.requireNonNull(host, "host");
+            Objects.requireNonNull(publicUrl, "publicUrl");
+            Objects.requireNonNull(authToken, "authToken");
+            sources = List.copyOf(Objects.requireNonNull(sources, "sources"));
+        }
+    }
+
+    public record DashboardSource(String id, String name, String baseUrl, String token) {
+        public DashboardSource {
+            Objects.requireNonNull(id, "id");
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(baseUrl, "baseUrl");
+            Objects.requireNonNull(token, "token");
+        }
+    }
 }

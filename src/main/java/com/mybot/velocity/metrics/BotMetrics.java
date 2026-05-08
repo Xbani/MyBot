@@ -36,4 +36,20 @@ public final class BotMetrics {
                 "lastReload", lastReload.toString()
         );
     }
+
+    public int activeBots() {
+        return activeBots.get();
+    }
+
+    public long commandsExecuted() {
+        return commandsExecuted.get();
+    }
+
+    public long graphTransitions() {
+        return graphTransitions.get();
+    }
+
+    public Instant lastReload() {
+        return lastReload;
+    }
 }

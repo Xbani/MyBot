@@ -19,3 +19,11 @@ data-folders:
   bots: bots
   graphs: graphs
   schematics: schematics
+
+dashboard:
+  enabled: true
+  host: 0.0.0.0
+  port: 8080
+  public-url: "http://localhost:8080"
+  auth-token: ""
+  sources: []

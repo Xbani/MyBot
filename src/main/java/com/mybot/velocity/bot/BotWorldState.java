@@ -1,5 +1,7 @@
 package com.mybot.velocity.bot;
 
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.GameMode;
+
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -10,13 +12,21 @@ import java.util.concurrent.ConcurrentMap;
 public final class BotWorldState {
     private final WorldBlockCache blocks;
     private final BotInventoryState inventory = new BotInventoryState();
+    private final BotScoreboardState scoreboard = new BotScoreboardState();
     private final ConcurrentMap<UUID, String> playerNames = new ConcurrentHashMap<>();
     private final ConcurrentMap<Integer, TrackedPlayer> playersByEntity = new ConcurrentHashMap<>();
     private volatile float health = 20.0f;
     private volatile int food = 20;
     private volatile float saturation = 5.0f;
+    private volatile float experienceProgress;
+    private volatile int experienceLevel;
+    private volatile int totalExperience;
     private volatile int lastAttackerEntityId = -1;
     private volatile Instant lastDamageAt = Instant.EPOCH;
+    private volatile Instant lastTeleportAt = Instant.EPOCH;
+    private volatile Instant matchStartedAt = Instant.EPOCH;
+    private volatile GameMode gameMode = GameMode.SURVIVAL;
+    private volatile String serverName = "";
 
     public BotWorldState(WorldBlockCache blocks) {
         this.blocks = blocks;
@@ -30,8 +40,16 @@ public final class BotWorldState {
         return inventory;
     }
 
+    public BotScoreboardState scoreboard() {
+        return scoreboard;
+    }
+
     public Collection<TrackedPlayer> trackedPlayers() {
         return List.copyOf(playersByEntity.values());
+    }
+
+    public void clearTrackedPlayers() {
+        playersByEntity.clear();
     }
 
     public void rememberPlayerName(UUID uuid, String username) {
@@ -62,6 +80,50 @@ public final class BotWorldState {
         playersByEntity.remove(entityId);
     }
 
+    public String serverName() {
+        return serverName;
+    }
+
+    public void setServerName(String serverName) {
+        this.serverName = serverName == null ? "" : serverName;
+    }
+
+    public GameMode gameMode() {
+        return gameMode;
+    }
+
+    public void setGameMode(GameMode gameMode) {
+        if (gameMode != null) {
+            this.gameMode = gameMode;
+        }
+    }
+
+    public boolean spectator() {
+        return gameMode == GameMode.SPECTATOR;
+    }
+
+    public Instant lastTeleportAt() {
+        return lastTeleportAt;
+    }
+
+    public void markTeleport() {
+        lastTeleportAt = Instant.now();
+    }
+
+    public Instant matchStartedAt() {
+        return matchStartedAt;
+    }
+
+    public void markMatchStarted() {
+        if (matchStartedAt.equals(Instant.EPOCH)) {
+            matchStartedAt = Instant.now();
+        }
+    }
+
+    public void resetMatchTiming() {
+        matchStartedAt = Instant.EPOCH;
+    }
+
     public float health() {
         return health;
     }
@@ -72,6 +134,24 @@ public final class BotWorldState {
 
     public float saturation() {
         return saturation;
+    }
+
+    public float experienceProgress() {
+        return experienceProgress;
+    }
+
+    public int experienceLevel() {
+        return experienceLevel;
+    }
+
+    public int totalExperience() {
+        return totalExperience;
+    }
+
+    public void updateExperience(float progress, int level, int total) {
+        this.experienceProgress = progress;
+        this.experienceLevel = level;
+        this.totalExperience = total;
     }
 
     public void updateHealth(float health, int food, float saturation) {

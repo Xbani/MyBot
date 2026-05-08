@@ -7,6 +7,72 @@ sprint-speed: 0.16
 sneak-speed: 0.04
 reaction-millis: 180
 aim-accuracy: 0.86
+skill-level: average
+aggression: 0.56
+courage: 0.52
+greed: 0.52
+curiosity: 0.45
+panic-threshold: 0.25
+teaming-likelihood: 0.30
+betrayal-likelihood: 0.10
+taunt-likelihood: 0.04
+chase-persistence: 0.55
+fight-confidence-bias: 0.0
+reaction-delay-min-millis: 220
+reaction-delay-max-millis: 520
+aim-error: 4.8
+loot-mistake-chance: 0.12
+inventory-delay-chance: 0.18
+missed-hit-chance: 0.16
+strafe-quality: 0.58
+crit-attempt-chance: 0.22
+lobby-roam-radius: 12.0
+pregame-roam-radius: 18.0
+debug-logging: false
+passive-look-radius: 13.0
+passive-look-player-chance: 0.72
+passive-look-player-height: 0.85
+passive-look-tracking: 0.075
+passive-look-around-tracking: 0.055
+passive-look-target-min-millis: 3200
+passive-look-target-jitter-millis: 4200
+passive-look-decision-min-millis: 1800
+passive-look-decision-jitter-millis: 2600
+passive-look-around-min-millis: 2800
+passive-look-around-jitter-millis: 4200
+passive-taunts-enabled: true
+passive-taunt-interval-millis: 18000
+passive-taunt-jitter-millis: 12000
+passive-taunt-friendly-swing-weight: 0.52
+passive-taunt-goofy-sneak-weight: 0.34
+passive-taunt-air-hop-swing-weight: 0.14
+wood-block-states:
+  - "84-117"
+  - "6570-6725"
+stone-block-states:
+  - "1-28"
+crafting-table-block-states:
+  - "850-900"
+  - "1450-1500"
+chest-block-states:
+  - "900-980"
+  - "1501-1560"
+weapon-items:
+  - "800-900:90"
+  - "700-799:70"
+  - "600-699:55"
+food-items:
+  - "900-1050:50"
+armor-items:
+  - "1051-1250:65"
+block-items:
+  - "1-28:25"
+tool-items:
+  - "500-599:45"
+recipe-crafting-table-id: -1
+recipe-sticks-id: -1
+recipe-wooden-pickaxe-id: -1
+recipe-stone-sword-id: -1
 loot-priority:
   weapon: 100
   armor: 80

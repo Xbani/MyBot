@@ -1,22 +1,149 @@
-count: 2
+count: 6
 initial-server: hg2
 assigned-graph: hg_bot
+
 behavior:
-  aggression: 0.65
-  reaction-millis: 180
-  aim-accuracy: 0.86
-  loot-priority: balanced
+  detection-radius: 26.0
+  melee-range: 3.0
+  lobby-roam-radius: 10.0
+  pregame-roam-radius: 16.0
+  debug-logging: true
+
 names:
-  - Astra
-  - Nova
-  - Kiro
-  - Milo
-  - Rune
-  - Sora
-  - Vex
-  - Nox
-  - Lynx
-  - Echo
+  - Rookie
+  - Scout
+  - Buddy
+  - Shadow
+  - Bruiser
+  - Ace
+
+behavior-profiles:
+  Rookie:
+    skill-level: noob
+    aggression: 0.38
+    courage: 0.28
+    greed: 0.82
+    curiosity: 0.70
+    panic-threshold: 0.34
+    teaming-likelihood: 0.45
+    betrayal-likelihood: 0.03
+    taunt-likelihood: 0.08
+    chase-persistence: 0.24
+    fight-confidence-bias: -0.24
+    reaction-delay-min-millis: 520
+    reaction-delay-max-millis: 1100
+    aim-error: 10.0
+    loot-mistake-chance: 0.30
+    inventory-delay-chance: 0.42
+    missed-hit-chance: 0.34
+    strafe-quality: 0.28
+    crit-attempt-chance: 0.05
+
+  Scout:
+    skill-level: average
+    aggression: 0.48
+    courage: 0.50
+    greed: 0.45
+    curiosity: 0.86
+    panic-threshold: 0.25
+    teaming-likelihood: 0.62
+    betrayal-likelihood: 0.05
+    taunt-likelihood: 0.03
+    chase-persistence: 0.48
+    fight-confidence-bias: -0.04
+    reaction-delay-min-millis: 230
+    reaction-delay-max-millis: 520
+    aim-error: 4.8
+    loot-mistake-chance: 0.12
+    inventory-delay-chance: 0.16
+    missed-hit-chance: 0.17
+    strafe-quality: 0.56
+    crit-attempt-chance: 0.18
+
+  Buddy:
+    skill-level: average
+    aggression: 0.42
+    courage: 0.58
+    greed: 0.38
+    curiosity: 0.58
+    panic-threshold: 0.21
+    teaming-likelihood: 0.88
+    betrayal-likelihood: 0.01
+    taunt-likelihood: 0.06
+    chase-persistence: 0.50
+    fight-confidence-bias: 0.02
+    reaction-delay-min-millis: 210
+    reaction-delay-max-millis: 460
+    aim-error: 4.2
+    loot-mistake-chance: 0.10
+    inventory-delay-chance: 0.12
+    missed-hit-chance: 0.14
+    strafe-quality: 0.62
+    crit-attempt-chance: 0.20
+
+  Shadow:
+    skill-level: average
+    aggression: 0.64
+    courage: 0.48
+    greed: 0.66
+    curiosity: 0.42
+    panic-threshold: 0.22
+    teaming-likelihood: 0.50
+    betrayal-likelihood: 0.52
+    taunt-likelihood: 0.10
+    chase-persistence: 0.68
+    fight-confidence-bias: 0.06
+    reaction-delay-min-millis: 190
+    reaction-delay-max-millis: 430
+    aim-error: 4.6
+    loot-mistake-chance: 0.10
+    inventory-delay-chance: 0.14
+    missed-hit-chance: 0.15
+    strafe-quality: 0.64
+    crit-attempt-chance: 0.24
+
+  Bruiser:
+    skill-level: tryhard
+    aggression: 0.86
+    courage: 0.74
+    greed: 0.44
+    curiosity: 0.34
+    panic-threshold: 0.15
+    teaming-likelihood: 0.12
+    betrayal-likelihood: 0.14
+    taunt-likelihood: 0.07
+    chase-persistence: 0.86
+    fight-confidence-bias: 0.18
+    reaction-delay-min-millis: 120
+    reaction-delay-max-millis: 280
+    aim-error: 2.4
+    loot-mistake-chance: 0.05
+    inventory-delay-chance: 0.08
+    missed-hit-chance: 0.08
+    strafe-quality: 0.84
+    crit-attempt-chance: 0.46
+
+  Ace:
+    skill-level: tryhard
+    aggression: 0.62
+    courage: 0.78
+    greed: 0.34
+    curiosity: 0.40
+    panic-threshold: 0.12
+    teaming-likelihood: 0.20
+    betrayal-likelihood: 0.08
+    taunt-likelihood: 0.03
+    chase-persistence: 0.70
+    fight-confidence-bias: 0.12
+    reaction-delay-min-millis: 105
+    reaction-delay-max-millis: 260
+    aim-error: 2.0
+    loot-mistake-chance: 0.04
+    inventory-delay-chance: 0.06
+    missed-hit-chance: 0.07
+    strafe-quality: 0.88
+    crit-attempt-chance: 0.40
+
 skin:
   value: "ewogICJ0aW1lc3RhbXAiIDogMTc3NzE5OTczMTk5NCwKICAicHJvZmlsZUlkIiA6ICJiNGZhMzIzZTkyZjc0OGRkYjJiZDA2YmExZjhkZjEzNCIsCiAgInByb2ZpbGVOYW1lIiA6ICJTcG9rc2l1a3MiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzdkMzFlOGJjNmM5YWYwM2I5OTk3MGM1NDlhODg4MzdkZWUxMWIwZDQzNzkzYWE2NjI2YzcwZDI3Mzc0YjRhMSIKICAgIH0KICB9Cn0="
   signature: "ui0CyzRY1DJe9/1elVZrmgMZ3abMKlvRatseUO7LHGj4AuTfy17+ol9VJk9QE2dO0TEz9HkpEu9g1LeF3OeleZfbq1HMNGoeLkGYbPj1nTw/FjpI0skWbmhyVQNxyFFAobYwUWBtCdc9R8dkms73RAnVBluKrXw17+zbfDWQcGUEjrqBGn+yEKChqMXc6RQETaxu9OkyGletN6cjshSpl7UcRYQ7Li0kLk0UNoagGvSX594bH2CCc3dAhpY+gAp5hKzFMVK3IKSfiBWMqiVTrKukdYwcrZbXzmtIk/b5bu9bD0n7IAMvXsAhnLcizMXMVsaDW/2wUHFLD30T07J3eo0XstXgEhfmlBrLxlKPiKVQZNMOpvDBwBUw1WIw70nGLGkj1T4Z1MOKK6JPuAofL1Wec7oX71xs3wfgcFaiN94BvX/WP+pJ5BQSdXfO1advBsxDWGNNnKQESLco26eUmhZvmEgcY17ZVM40XcQzih2U2e955aUyRYbE+ELidvxYPECedLrfWGYFRPzNBBELRplhfKu+gDKIFqd0ADMxMPmhjOzgW7s3ZjIlu0NeYvl0u/kKaSN4kwNFoDuPL6vBeZt9lC3VOoGwuikFB8LDnVEzizZgWBcOp1SFloomj3GjKARQoBUhRnnPMTs7daGDiQr4I5AdRT1pPZMnMG119X8="

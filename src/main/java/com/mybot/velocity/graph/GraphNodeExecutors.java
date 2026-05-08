@@ -59,7 +59,7 @@ public final class GraphNodeExecutors {
             String schematic = String.valueOf(node.params().getOrDefault("schematic", "demo_bridge.schem"));
             ctx.schematics().metadata(schematic)
                     .orElseThrow(() -> new IllegalStateException("Missing schematic " + schematic));
-            logger.info("Bot {} queued schematic {}", ctx.definition().id(), schematic);
+            logger.debug("Bot {} queued schematic {}", ctx.definition().id(), schematic);
             return GraphNodeExecutor.transition("success");
         });
         registry.put(GraphNodeType.Conditional, (node, ctx, ticks) -> {
@@ -78,7 +78,7 @@ public final class GraphNodeExecutors {
 
     private GraphNodeExecutor logAndAdvance(Logger logger, String verb) {
         return (node, ctx, ticks) -> {
-            logger.info("{} bot {} via node {}", verb, ctx.definition().id(), node);
+            logger.debug("{} bot {} via node {}", verb, ctx.definition().id(), node);
             return GraphNodeExecutor.transition("success");
         };
     }

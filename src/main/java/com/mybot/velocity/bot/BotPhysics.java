@@ -5,6 +5,9 @@ import java.util.Comparator;
 import java.util.Optional;
 
 public final class BotPhysics {
+    public static final double PLAYER_STANDING_EYE_HEIGHT = 1.62;
+    public static final double PLAYER_BODY_AIM_HEIGHT = 1.10;
+
     private static final double WIDTH = 0.6;
     private static final double HALF_WIDTH = WIDTH / 2.0;
     private static final double HEIGHT = 1.8;
@@ -14,8 +17,12 @@ public final class BotPhysics {
     private static final double WALK_SPEED = 0.10;
     private static final double SPRINT_SPEED = 0.16;
     private static final double SNEAK_SPEED = 0.04;
+    private static final double WATER_SPEED = 0.055;
+    private static final double WATER_DRAG = 0.72;
+    private static final double FLY_SPEED = 0.05;
+    private static final double SPRINT_FLY_SPEED = 0.10;
+    private static final double AIR_CONTROL = 0.22;
     private static final double JUMP_VELOCITY = 0.42;
-    private static final double GROUND_FRICTION = 0.55;
     private static final double AIR_FRICTION = 0.91;
 
     private Vec3 position = Vec3.ZERO;
@@ -25,6 +32,7 @@ public final class BotPhysics {
     private boolean onGround;
     private boolean horizontalCollision;
     private boolean initialized;
+    private boolean flying;
     private int knockbackTicks;
 
     public PhysicsTick tick(WorldBlockCache blocks, Collection<TrackedPlayer> players) {
@@ -35,7 +43,7 @@ public final class BotPhysics {
         Optional<TrackedPlayer> target = nearestRealPlayer(players);
         if (target.isPresent()) {
             Vec3 targetPosition = target.get().position();
-            LookAngles look = lookAt(position.add(0, 1.62, 0), targetPosition.add(0, 1.62, 0));
+            LookAngles look = lookAt(eyePosition(position), bodyAimPosition(targetPosition));
             yaw = look.yaw();
             pitch = look.pitch();
             return tick(blocks, players, targetInput(targetPosition, blocks.hasChunkAt(position.x(), position.z())));
@@ -53,14 +61,19 @@ public final class BotPhysics {
             clamped = new MovementInput(clamped.forward() * 0.25, clamped.strafe() * 0.25, clamped.jump(), false, clamped.sneak());
             knockbackTicks--;
         }
-        Vec3 horizontal = horizontalVelocity(clamped);
+        if (flying) {
+            return tickFlying(blocks, players, clamped);
+        }
+        boolean inLiquid = blocks.isLiquidLike(position);
+        Vec3 horizontal = horizontalVelocity(clamped, inLiquid);
         double vertical = velocity.y();
-        if (clamped.jump() && onGround) {
+        if (inLiquid) {
+            vertical = swimVertical(clamped);
+        } else if (clamped.jump() && onGround) {
             vertical = JUMP_VELOCITY;
         }
-        double nextVertical = Math.max(TERMINAL_VELOCITY, vertical - GRAVITY);
-        double friction = onGround ? GROUND_FRICTION : AIR_FRICTION;
-        Vec3 movement = new Vec3(horizontal.x() + velocity.x() * friction, vertical, horizontal.z() + velocity.z() * friction);
+        double nextVertical = inLiquid ? vertical * WATER_DRAG : Math.max(TERMINAL_VELOCITY, vertical - GRAVITY);
+        Vec3 movement = movementDelta(horizontal, vertical, inLiquid);
         CollisionResult resolved = moveWithCollisions(blocks, position, movement);
         position = resolved.position();
         velocity = new Vec3(resolved.blockedX() ? 0 : movement.x(), resolved.blockedY() ? 0 : nextVertical, resolved.blockedZ() ? 0 : movement.z());
@@ -98,9 +111,21 @@ public final class BotPhysics {
         return onGround;
     }
 
+    public boolean horizontalCollision() {
+        return horizontalCollision;
+    }
+
     public void setLook(float yaw, float pitch) {
         this.yaw = yaw;
         this.pitch = Math.max(-90f, Math.min(90f, pitch));
+    }
+
+    public void setFlying(boolean flying) {
+        this.flying = flying;
+        if (flying) {
+            onGround = false;
+            velocity = Vec3.ZERO;
+        }
     }
 
     public void applyKnockback(Vec3 knockback) {
@@ -126,6 +151,14 @@ public final class BotPhysics {
         return new LookAngles(yaw, pitch);
     }
 
+    public static Vec3 eyePosition(Vec3 feetPosition) {
+        return feetPosition.add(0, PLAYER_STANDING_EYE_HEIGHT, 0);
+    }
+
+    public static Vec3 bodyAimPosition(Vec3 feetPosition) {
+        return feetPosition.add(0, PLAYER_BODY_AIM_HEIGHT, 0);
+    }
+
     private Optional<TrackedPlayer> nearestRealPlayer(Collection<TrackedPlayer> players) {
         return nearestRealPlayer(position, players);
     }
@@ -138,8 +171,8 @@ public final class BotPhysics {
         return new MovementInput(1, 0, false, distance > 7, false);
     }
 
-    private Vec3 horizontalVelocity(MovementInput input) {
-        double speed = input.sneak() ? SNEAK_SPEED : input.sprint() ? SPRINT_SPEED : WALK_SPEED;
+    private Vec3 horizontalVelocity(MovementInput input, boolean inLiquid) {
+        double speed = inLiquid ? WATER_SPEED : input.sneak() ? SNEAK_SPEED : input.sprint() ? SPRINT_SPEED : WALK_SPEED;
         if (!input.moving()) {
             return Vec3.ZERO;
         }
@@ -152,6 +185,55 @@ public final class BotPhysics {
         double z = forwardZ * input.forward() + strafeZ * input.strafe();
         Vec3 normalized = new Vec3(x, 0, z).horizontalNormalize();
         return normalized.multiply(speed);
+    }
+
+    private PhysicsTick tickFlying(WorldBlockCache blocks, Collection<TrackedPlayer> players, MovementInput input) {
+        Vec3 horizontal = horizontalFlyVelocity(input);
+        double vertical = input.jump() ? FLY_SPEED : input.sneak() ? -FLY_SPEED : 0.0;
+        Vec3 movement = new Vec3(horizontal.x(), vertical, horizontal.z());
+        CollisionResult resolved = moveWithCollisions(blocks, position, movement);
+        position = resolved.position();
+        velocity = new Vec3(resolved.blockedX() ? 0 : movement.x(), resolved.blockedY() ? 0 : movement.y(), resolved.blockedZ() ? 0 : movement.z());
+        onGround = false;
+        horizontalCollision = resolved.blockedX() || resolved.blockedZ();
+        Optional<TrackedPlayer> target = nearestRealPlayer(players);
+        return new PhysicsTick(position, yaw, pitch, false, horizontalCollision, blocks.hasChunkAt(position.x(), position.z()), target, input);
+    }
+
+    private Vec3 horizontalFlyVelocity(MovementInput input) {
+        if (!input.moving()) {
+            return Vec3.ZERO;
+        }
+        double speed = input.sprint() ? SPRINT_FLY_SPEED : FLY_SPEED;
+        double yawRad = Math.toRadians(yaw);
+        double forwardX = -Math.sin(yawRad);
+        double forwardZ = Math.cos(yawRad);
+        double strafeX = Math.cos(yawRad);
+        double strafeZ = Math.sin(yawRad);
+        double x = forwardX * input.forward() + strafeX * input.strafe();
+        double z = forwardZ * input.forward() + strafeZ * input.strafe();
+        return new Vec3(x, 0, z).horizontalNormalize().multiply(speed);
+    }
+
+    private Vec3 movementDelta(Vec3 horizontal, double vertical, boolean inLiquid) {
+        if (inLiquid) {
+            return new Vec3(horizontal.x() + velocity.x() * WATER_DRAG, vertical, horizontal.z() + velocity.z() * WATER_DRAG);
+        }
+        if (!onGround) {
+            return new Vec3(horizontal.x() * AIR_CONTROL + velocity.x() * AIR_FRICTION, vertical,
+                    horizontal.z() * AIR_CONTROL + velocity.z() * AIR_FRICTION);
+        }
+        return new Vec3(horizontal.x(), vertical, horizontal.z());
+    }
+
+    private double swimVertical(MovementInput input) {
+        if (input.jump()) {
+            return 0.08;
+        }
+        if (input.moving()) {
+            return Math.max(0.02, velocity.y() * WATER_DRAG + 0.04);
+        }
+        return Math.max(-0.06, velocity.y() * WATER_DRAG - 0.015);
     }
 
     private static CollisionResult moveWithCollisions(WorldBlockCache blocks, Vec3 start, Vec3 delta) {

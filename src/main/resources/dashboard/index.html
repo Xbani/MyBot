@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MyBot Dashboard</title>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="brand">
+        <div class="logo">MB</div>
+        <div>
+            <strong>MYBOT</strong>
+            <span>DASHBOARD</span>
+        </div>
+    </div>
+    <nav>
+        <button class="active">Tableau de bord</button>
+        <button>Carte</button>
+        <button>Joueurs</button>
+        <button>Bots</button>
+        <button>Evenements</button>
+        <button>Settings</button>
+    </nav>
+    <div class="sidebar-card">
+        <strong>Proxy central</strong>
+        <span id="source-count">0 source</span>
+    </div>
+</aside>
+<main>
+    <header class="topbar">
+        <section>
+            <span>PARTIE</span>
+            <strong id="game-id">HG</strong>
+        </section>
+        <section>
+            <span>STATUT</span>
+            <strong class="ok" id="sync-status">SYNC</strong>
+        </section>
+        <section>
+            <span>BOTS</span>
+            <strong id="bot-count">0</strong>
+        </section>
+        <section>
+            <span>JOUEURS VUS</span>
+            <strong id="player-count">0</strong>
+        </section>
+        <section>
+            <span>CHUNKS</span>
+            <strong id="chunk-count">0</strong>
+        </section>
+        <section>
+            <span>UPTIME</span>
+            <strong id="uptime">00:00:00</strong>
+        </section>
+    </header>
+    <section class="timeline panel">
+        <div class="panel-title">TIMELINE DE LA PARTIE</div>
+        <div class="track">
+            <i id="timeline-marker"></i>
+            <span style="--x:10%">PREGAME</span>
+            <span style="--x:35%">INVINCIBILITE</span>
+            <span style="--x:65%">GAME</span>
+            <span style="--x:84%">FEAST</span>
+        </div>
+        <div id="timeline-status" class="timeline-status">Scoreboard en attente</div>
+    </section>
+    <section class="content-grid">
+        <section class="map-panel panel">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-title">CARTE - HUNGER GAMES</div>
+                    <small id="map-subtitle">Chunks recus par les bots</small>
+                </div>
+                <div class="map-tools">
+                    <button id="zoom-in">+</button>
+                    <button id="zoom-out">-</button>
+                    <button id="center-map">C</button>
+                </div>
+            </div>
+            <canvas id="map-canvas" width="1200" height="640"></canvas>
+            <div class="legend">
+                <span><i class="chunk"></i> Chunk vu</span>
+                <span><i class="bot"></i> Bot</span>
+                <span><i class="player"></i> Joueur</span>
+                <span><i class="limit"></i> Limites</span>
+            </div>
+        </section>
+        <aside class="right-column">
+            <section class="panel info-panel">
+                <div class="panel-title">INFORMATIONS</div>
+                <dl>
+                    <dt>Sources</dt><dd id="info-sources">0</dd>
+                    <dt>Online</dt><dd id="info-online">0</dd>
+                    <dt>Transitions</dt><dd id="info-transitions">0</dd>
+                    <dt>Derniere sync</dt><dd id="info-sync">--</dd>
+                </dl>
+            </section>
+            <section class="panel limits-panel">
+                <div class="panel-title">APERCU DES LIMITES</div>
+                <canvas id="limits-canvas" width="320" height="220"></canvas>
+            </section>
+        </aside>
+    </section>
+    <section class="bottom-grid">
+        <section class="panel">
+            <div class="panel-head">
+                <div class="panel-title">BOTS</div>
+                <input id="bot-search" placeholder="Rechercher">
+            </div>
+            <table>
+                <thead><tr><th>Bot</th><th>Proxy</th><th>Vie</th><th>Pos</th><th>Intent</th><th>Statut</th></tr></thead>
+                <tbody id="bots-table"></tbody>
+            </table>
+        </section>
+        <section class="panel">
+            <div class="panel-title">JOUEURS</div>
+            <table>
+                <thead><tr><th>Pseudo</th><th>Proxy</th><th>Pos</th><th>Type</th></tr></thead>
+                <tbody id="players-table"></tbody>
+            </table>
+        </section>
+        <section class="panel">
+            <div class="panel-title">EVENEMENTS RECENTS</div>
+            <div id="events-list" class="events"></div>
+        </section>
+    </section>
+</main>
+<div id="bot-modal" class="modal hidden">
+    <div class="modal-dialog">
+        <button id="bot-modal-close" class="modal-close">x</button>
+        <h2 id="bot-modal-title">Bot</h2>
+        <div id="bot-modal-body"></div>
+    </div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

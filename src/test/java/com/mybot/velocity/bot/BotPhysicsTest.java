@@ -121,6 +121,99 @@ class BotPhysicsTest {
         assertThat(physics.position().z()).isGreaterThan(2.0);
     }
 
+    @Test
+    void keepsSwimmingInsteadOfSinkingThroughWater() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        for (int x = -2; x <= 2; x++) {
+            for (int y = 62; y <= 65; y++) {
+                for (int z = -2; z <= 2; z++) {
+                    blocks.setBlockForTesting(x, y, z, 50);
+                }
+            }
+        }
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0, 64, 0), Vec3.ZERO, 0, 0);
+
+        for (int i = 0; i < 20; i++) {
+            physics.tick(blocks, List.of(), new MovementInput(1, 0, false, true, false));
+        }
+
+        assertThat(physics.position().y()).isGreaterThan(63.75);
+        assertThat(physics.position().z()).isGreaterThan(0.4);
+    }
+
+    @Test
+    void treatsModernWaterStateAsLiquidForSwimmingPhysics() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        for (int x = -2; x <= 2; x++) {
+            for (int y = 61; y <= 64; y++) {
+                for (int z = -2; z <= 2; z++) {
+                    blocks.setBlockForTesting(x, y, z, 29);
+                }
+            }
+        }
+        BotPhysics physics = new BotPhysics();
+        physics.correctPosition(new Vec3(0, 61.2, 0), Vec3.ZERO, 0, 0);
+
+        for (int i = 0; i < 12; i++) {
+            physics.tick(blocks, List.of(), new MovementInput(1, 0, true, false, false));
+        }
+
+        assertThat(blocks.isLiquidLike(physics.position())).isTrue();
+        assertThat(physics.position().y()).isGreaterThan(61.6);
+    }
+
+    @Test
+    void exposesLoadedChunkSnapshots() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        blocks.setBlockForTesting(32, 64, -16, 1);
+
+        assertThat(blocks.chunkSnapshots())
+                .singleElement()
+                .satisfies(chunk -> {
+                    assertThat(chunk.chunkX()).isEqualTo(2);
+                    assertThat(chunk.chunkZ()).isEqualTo(-1);
+                    assertThat(chunk.updatedAtMillis()).isGreaterThan(0);
+                });
+    }
+
+    @Test
+    void exposesHighestBlockSurfaceForLoadedChunks() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        blocks.setBlockForTesting(0, 63, 0, 1);
+        blocks.setBlockForTesting(0, 67, 0, 8);
+        blocks.setBlockForTesting(1, 61, 0, 34);
+
+        assertThat(blocks.chunkSnapshots())
+                .singleElement()
+                .satisfies(chunk -> {
+                    assertThat(chunk.minY()).isEqualTo(61);
+                    assertThat(chunk.maxY()).isEqualTo(67);
+                    assertThat(chunk.colors()).hasSize(16 * 16 * 6);
+                    assertThat(chunk.heights().get(0)).isEqualTo(67);
+                    assertThat(chunk.heights().get(1)).isEqualTo(61);
+                });
+    }
+
+    @Test
+    void keepsWaterAsVisibleSurfaceAboveDirt() {
+        WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
+        blocks.setBlockForTesting(0, 61, 0, 10);
+        blocks.setBlockForTesting(0, 64, 0, 29);
+
+        assertThat(blocks.chunkSnapshots())
+                .singleElement()
+                .satisfies(chunk -> {
+                    assertThat(chunk.heights().get(0)).isEqualTo(64);
+                    int color = Integer.parseInt(chunk.colors().substring(0, 6), 16);
+                    int red = (color >> 16) & 0xff;
+                    int green = (color >> 8) & 0xff;
+                    int blue = color & 0xff;
+                    assertThat(blue).isGreaterThan(red);
+                    assertThat(blue).isGreaterThan(green);
+                });
+    }
+
     private WorldBlockCache flatGround() {
         WorldBlockCache blocks = new WorldBlockCache(NOPLogger.NOP_LOGGER);
         for (int x = -8; x <= 8; x++) {
